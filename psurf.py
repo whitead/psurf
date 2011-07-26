@@ -30,7 +30,7 @@ chiTypes = [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD'], ['CB', 'CG', 'CD'
 OPLSSigmas = {'N':3.25, 'O':2.96, 'C':3.75, 'S':3.55, 'H':0.00, 'HOH':3.1507}
 backbone = ['N', 'O', 'CA', 'C']
 
-peptideSurfData = "/home/whitead/Documents/ProteinSurfaces/aalist"
+peptideSurfData = "aalist.txt"
 aaSA = {}
 AAs = []
 surfCutoff = 0.4
