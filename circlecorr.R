@@ -86,7 +86,7 @@ circle.corr <- function(corr, bars=NULL, col=c("black","white"), bg = "white",
         ff <- seq(-1,1, length=nc+1)
         bg2 = rep(0, n * m)
         for (i in 1:(n * m)){
-            bg2[i] <- rank(xc(ff[2:nc], as.vector(corr)[i]), 
+          bg2[i] <- rank(c(ff[2:nc], as.vector(corr)[i]), 
                             ties.method = "random")[nc]
         }
         bg <- (col[nc:1])[bg2]
