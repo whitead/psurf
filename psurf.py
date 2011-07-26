@@ -1,6 +1,6 @@
 import math, re
 
-
+#Created by Andrew White, 2011
 
 #0 atom number
 #1 atom type
