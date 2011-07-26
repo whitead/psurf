@@ -108,13 +108,17 @@ gi <- which(colnames(wyy) == "G")
 wyy <- wyy[,-gi]
 iyy <- iyy[,-gi]
 
-cairo_pdf("contact_plots.pdf", width=3.42,height=4.5, pointsize=8)
-par(family="LMRoman10", mfrow=c(2,1), cex.axis=0.6, mar=c(2,4,1,2), cex.main=0.8)
-xp <- barplot(wyy[2,], ylim=c(0,max(wyy[3,] + 0.03)), ylab="Water per Contact", col="light blue")
-error.bar(xp, wyy[2,], lower=(wyy[2,] - wyy[1,]), upper=(wyy[3,] - wyy[2,]), length=0.03)
-par(mar=c(5,4,2,2))
+png("contact_plots.png", width=3.3*500,height=4.5*500, pointsize=8, res=500)
+par(family="LMRoman10", mfrow=c(2,1), cex.axis=0.65, mar=c(2,4,1,0.5))
+
 xp <- barplot(iyy[2,], ylim=c(0,max(iyy[3,] + 0.03)), ylab="Proportion Interacting", col="light blue")
 error.bar(xp, iyy[2,], lower=(iyy[2,] - iyy[1,]), upper=(iyy[3,] - iyy[2,]), length=0.03)
+
+
+par(mar=c(3,4,2,0.5))
+
+xp <- barplot(wyy[2,], ylim=c(0,max(wyy[3,] + 0.03)), ylab="Water per Contact", col="light blue")
+error.bar(xp, wyy[2,], lower=(wyy[2,] - wyy[1,]), upper=(wyy[3,] - wyy[2,]), length=0.03)
 graphics.off()
 
 
