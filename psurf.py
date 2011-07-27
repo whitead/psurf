@@ -23,6 +23,9 @@ regexpWater = re.compile(
 
 pdbFormat = "%7s%5d%4s %3s%1s%4d %8.3f%8.3f%8.3f%6.2f%6.2f    "
 
+#Sequence Reader
+regexpSeq = re.compile("SEQRES[\s]*[\d]*[\s]*[\w]*[\s]*[\d]*[\s]*((([\w]*)[\s]{1}){1,13})")
+
 conversion = {'ALA':'A', 'ARG':'R', 'ASP':'D', 'ASN':'N', 'CYS':'C', 'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I', 'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P', 'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'}
 
 chis = {'GLU':[0,1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[]}
@@ -263,6 +266,7 @@ class Protein:
         self.waters = []
         self.id = ""
         self.chains = None
+        self.seq = []
         
     def __len__(self):
         return len(self.residues)
@@ -556,6 +560,17 @@ def readProtein(pdbfile):
                   prot.addWater(atomw)
 
     return prot
+
+def readProteinSeq(pdbfile):
+    prot = Protein()
+    with open(pdbfile, "r") as f:
+        for line in f.readlines():
+            m = regexpSeq.match(line)
+
+            if(m):
+              prot.seq.append(conversion[m.group(3)])
+              
+        print(prot.seq)
 
 def readProteinSA(pdbfile):
 
