@@ -641,7 +641,9 @@ def setCutoff(cut):
    surfCutoff = cut
 
 def isSurf(ratio):
-   if(surfCutoff < 0):
+   if(surfCutoff == 0):
+      return True
+   elif(surfCutoff < 0):
       if(ratio < abs(surfCutoff)):
          return True
    elif(ratio > surfCutoff):
