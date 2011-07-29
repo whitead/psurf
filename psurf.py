@@ -122,6 +122,12 @@ class Atom:
    def getCoord(self):
       return self.coord
 
+   def centerdistance(self, center):
+      dist = 0
+      for (x1,x2) in zip(self.coord, (center[0],center[1],center[2])):
+         dist += (x1 - x2)**2
+      return math.sqrt(dist)
+
 class Residue:
    def __init__(self):
        self.atoms = []
@@ -203,6 +209,9 @@ class Residue:
          if(a.getIndex() == index):
             return a
       return None
+  
+   def getSingleAtom(self, index):
+      return self.atoms[index]
 
    def getAtomByType(self, atype):
       for a in self.atoms:
@@ -236,28 +245,30 @@ class Residue:
    def getIndex(self):
        return self.index
 
-   def resIntersect(self, otherRes, centerPt, cutoffdist):
-       for j in range(self.getAtomNum()):
-             coord1 = self.getAtom(j).getCoord()
-             for n in range(otherRes.getAtomNum()):
-                   coord2 = otherRes.getAtom(n).getCoord()
+   def ResIntersect(self, otherRes, centerPt, cutoffdist):
+       for j in range(0,self.getAtomNum()):
+             coord1 = self.getSingleAtom(j).getCoord()
+             for n in range(0, otherRes.getAtomNum()):
+                   coord2 = otherRes.getSingleAtom(n).getCoord()
                    t = ((coord1[0]-coord2[0]) * (coord1[0]-centerPt[0]) + (coord1[1]-coord2[1]) * (coord1[1]-centerPt[1]) + (coord1[2]-coord2[2]) * (coord1[2]-centerPt[2])) / ((coord1[0]-centerPt[0])**2 + (coord1[1]-centerPt[1])**2 + (coord1[2]-centerPt[2])**2)
                    if 0 < t < 1:
+                   #print (t)
                        coord3 = [(coord1[0] * (1-t) + t * centerPt[0]), (coord1[1] * (1-t) + t * centerPt[1]), (coord1[2] * (1-t) + t * centerPt[2])]
                        d = 0
                        for (x1,x2) in zip(coord2, coord3):
                            d += (x1 - x2)**2
                        dist = math.sqrt(d)
-                       print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getAtom(n), dist))
+                       print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getSingleAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getSingleAtom(n), dist))
                        #print(dist)
                        #return dist
                        
                        if dist <= cutoffdist:
                           #print('Outside')
-                          return True
-                          #"Residue on Chain %s Number %s Type %s" % (self.getChain(), self.getresNum(), self.getType()))
-
-       return False
+                          return("Outside")#, "Residue on Chain %s Number %s Type %s" % (self.getChain(), self.getresNum(), self.getType()))
+                          break
+             #if dist <= cutoffdist:
+                #break
+       #return("Inside")#, "Residue on Chain %s Number %s Type %s" % (self.getChain(), self.getresNum(), self.getType()))
                                   
 
 class Protein:
@@ -336,8 +347,8 @@ class Protein:
     def getWaterNumber(self):
        return len(self.waters)
 
-    def getResidues(self):
-        return self.residues
+    def getResidues(self,r):
+        return self.residues[r]
 
     def getResidue(self, rindex, chain):
        rindex = self.getResidueIndex(rindex, chain)

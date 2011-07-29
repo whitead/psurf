@@ -27,13 +27,13 @@ with open(outf, 'w') as g:
         g.write("Chain Rnum Res SA\n")
         k.write("Chain Rnum Atom x y z\n")
         for n in range(0,len(f)):
-            r1 = f.getResidue(n)
+            r1 = f.getResidues(n)
             if r1.isSurf() == True :
-               g.write("%s %s %s %s\n" %(r1.getChain(), r1.getresNum(), r1.getType(), r1.getSA()))
+               g.write("%s %s %s %s\n" %(r1.getChain(), r1.getIndex(), r1.getType(), r1.getSA()))
                atomnum[0] += r1.getAtomNum()
                for j in range(0,r1.getAtomNum()):
-                   a1 = r1.getAtom(j)
-                   k.write("%s %s %s %s %s %s\n" %(r1.getChain(), r1.getresNum(), a1.getType(), a1.getCoord()[0], a1.getCoord()[1], a1.getCoord()[2]))
+                   a1 = r1.getSingleAtom(j)
+                   k.write("%s %s %s %s %s %s\n" %(r1.getChain(), r1.getIndex(), a1.getType(), a1.getCoord()[0], a1.getCoord()[1], a1.getCoord()[2]))
                    center[0] += a1.getCoord()[0]
                    center[1] += a1.getCoord()[1]
                    center[2] += a1.getCoord()[2]
@@ -47,19 +47,19 @@ print("Center Point Coordinate is %s" %(center))
 with open(outf3, 'w') as d:
     d.write("Chain Rnum Atom dist\n")
     for n in range(0,len(f)):
-    	for j in range(0,f.getResidue(n).getAtomNum()):
-            a1 = f.getResidue(n).getAtom(j)
-            d.write("%s %s %s %s\n" %(f.getResidue(n).getChain(), f.getResidue(n).getresNum(), a1.getType(), a1.centerdistance(center)))
+    	for j in range(0,f.getResidues(n).getAtomNum()):
+            a1 = f.getResidues(n).getSingleAtom(j)
+            d.write("%s %s %s %s\n" %(f.getResidues(n).getChain(), f.getResidues(n).getIndex(), a1.getType(), a1.centerdistance(center)))
 
 with open('OutSurRes.txt', 'w') as g:
     with open('InSurRes.txt', 'w') as k:
         g.write("Chain Rnum Res\n")
         k.write("Chain Rnum Res\n")
         for n in range(0,len(f)):
-            r1 = f.getResidue(n)
+            r1 = f.getResidues(n)
             if r1.isSurf() == True :
                  for j in range(0,len(f)):
-                      r2 = f.getResidue(j)
+                      r2 = f.getResidues(j)
                       if r2.getChain() == r1.getChain():
                           if j > n+1 or j < n-1:
                               d = r1.ResIntersect(r2, center, 1)
@@ -67,9 +67,9 @@ with open('OutSurRes.txt', 'w') as g:
                               #   g.write("%s\n" %(d))
                               control = []
                               if d == "Outside" :
-                                 control = [r1.getChain(), r1.getresNum(), r1.getType()]
-                                 g.write("%s %s %s\n" %(r1.getChain(), r1.getresNum(), r1.getType()))
+                                 control = [r1.getChain(), r1.getIndex(), r1.getType()]
+                                 g.write("%s %s %s\n" %(r1.getChain(), r1.getIndex(), r1.getType()))
                                  break
-                 r = [r1.getChain(), r1.getresNum(), r1.getType()]
+                 r = [r1.getChain(), r1.getIndex(), r1.getType()]
                  if r != control :
-                    k.write("%s %s %s\n" %(r1.getChain(), r1.getresNum(), r1.getType()))         
+                    k.write("%s %s %s\n" %(r1.getChain(), r1.getIndex(), r1.getType()))         
