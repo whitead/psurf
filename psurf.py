@@ -588,7 +588,8 @@ def readProteinSeq(pdbfile):
 
             if(m):
                for i in range(len(m.group(1).split())):
-                    prot.seq.append(conversion[m.group(1).split()[i]])   
+                    if m.group(1).split()[i] in conversion:
+                       prot.seq.append(conversion[m.group(1).split()[i]])   
     return prot           
 
 
