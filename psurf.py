@@ -24,9 +24,11 @@ regexpWater = re.compile(
 pdbFormat = "%7s%5d%4s %3s%1s%4d %8.3f%8.3f%8.3f%6.2f%6.2f    "
 
 #Sequence Reader
-regexpSeq = re.compile("SEQRES[\s]*[\d]*[\s]*[\w]*[\s]*[\d]*[\s]*((([\w]*)[\s]{1}){1,13})")
+regexpSeq = re.compile("SEQRES[\s]*[\d]*[\s]*[\w]*[\s]*[\d]*[\s]*(.*)")
 
 conversion = {'ALA':'A', 'ARG':'R', 'ASP':'D', 'ASN':'N', 'CYS':'C', 'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I', 'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P', 'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'}
+
+MW = {'A':'89.09', 'R':'174.20', 'D':'133.10', 'N':'132.12', 'C':'121.16', 'Q':'146.14', 'E':'147.13', 'G':'75.07', 'H':'155.15', 'I':'131.17', 'L':'131.17', 'K':'146.19', 'M':'149.21', 'F':'165.19', 'P':'115.13', 'S':'105.09', 'T':'119.12', 'W':'204.23', 'Y':'181.19', 'V':'117.15'}
 
 chis = {'GLU':[0,1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[]}
 chiTypes = [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD'], ['CB', 'CG', 'CD' , 'CE'], ['CB', 'CG', 'CD' , 'NZ']]
@@ -319,6 +321,12 @@ class Protein:
        seq.append("X")
        return seq
              
+    def calMolWeight(self):
+       sum = 0
+       for i in range(len(self.seq)):
+          sum = sum + float(MW[str(self.seq[1])])
+       return sum
+
     def getSurfaceCounts(self):
        scounts = aaSA.copy()
        for k in scounts.keys():
@@ -579,9 +587,10 @@ def readProteinSeq(pdbfile):
             m = regexpSeq.match(line)
 
             if(m):
-              prot.seq.append(conversion[m.group(3)])
-              
-        print(prot.seq)
+               for i in range(len(m.group(1).split())):
+                    prot.seq.append(conversion[m.group(1).split()[i]])   
+    return prot           
+
 
 def readProteinSA(pdbfile):
 
