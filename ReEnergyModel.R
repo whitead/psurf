@@ -3,8 +3,9 @@ load('sfracGrELOpen_1C.Rdata')
 
 #load('allcount.Rdata')
 
-energyCycle <- function(counts,protein) {
-  countMatrix <- counts
+energyCycle <- function(protein, distribution, hydration) {
+  source('countMatrixGenerator.R')
+  countMatrix <- matrixGenerator(distribution)
   
   source('obtainSurfaceResidues.R')
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
@@ -30,21 +31,20 @@ energyCycle <- function(counts,protein) {
   names(ener) <- c("Gclose","Gopen")
 
   for (distriNum in 1:2) {
-    ener[[distriNum]] <- freeEnergyModel(countMatrix, distriNum, pfracs)
+    ener[[distriNum]] <- freeEnergyModel(countMatrix, distriNum, pfracs, hydration)
   }
   return(ener)
 }
 
-freeEnergyModel <- function(countMatrix,distriNum,pfracs) {
+freeEnergyModel <- function(countMatrix,distriNum,pfracs,hydration) {
   InterfaceCount <- countMatrix
   Num <- distriNum
   pfracs <- pfracs
 
-  rownames(InterfaceCount) <- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V","FREE")
+  rownames(InterfaceCount) <- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V","WATER")
   colnames(InterfaceCount) <- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V")
 
   InterfaceCount <- InterfaceCount[order(rownames(InterfaceCount)),order(colnames(InterfaceCount))]
- 
 
   deltaGOpen <- array(0,1000)
   deltaGClose <- array(0,1000)
@@ -60,12 +60,13 @@ freeEnergyModel <- function(countMatrix,distriNum,pfracs) {
     for (j in 1:ncol(pfracs[[i]])) {
        Y <- array(0, length(sfracGrEL[[Num]]))
        for (k in 1:length(sfracGrEL[[Num]])) {
-         Y[k] <- InterfaceCount[which(rownames(InterfaceCount) == colnames(pfracs[[i]][j])), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * sfracGrEL[[Num]][k]
+         Y[k] <- InterfaceCount[which(rownames(InterfaceCount) == colnames(pfracs[[i]][j])), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * sfracGrEL[[Num]][k] * (1-hydration) + InterfaceCount[which(rownames(InterfaceCount) == "WATER"), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * 1 * hydration
        }
        sigmaY <- log(sum(Y), base = exp(1))
        X[j] <- mean(pfracs[[i]][,j]) * sigmaY
      }
     sigmaXln[i] <- sum(X)
+    print(sigmaXln[i])
     sigmaX[i] <- exp(sum(X))
   }
   deltaG <- array(0,2)
@@ -76,7 +77,7 @@ freeEnergyModel <- function(countMatrix,distriNum,pfracs) {
 
 }
 
-energybootstrap <- function(bootstrap,protein) {
+energybootstrap <- function(bootstrap,protein,distribution,hydration) {
   bootstrap <- bootstrap
   source('obtainSurfaceResidues.R')
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
@@ -104,9 +105,9 @@ energybootstrap <- function(bootstrap,protein) {
   ener <- list(Gclose,Gopen)
   names(ener) <- c("Gclose","Gopen")
   for (i in 1:bootstrap) {    
-    countMatrix <- matrixGenerator('surf.cal')
+    countMatrix <- matrixGenerator(distribution)
     for (distriNum in 1:2) {
-      ener[[distriNum]][i,] <- freeEnergyModel(countMatrix, distriNum, pfracs)
+      ener[[distriNum]][i,] <- freeEnergyModel(countMatrix, distriNum, pfracs, hydration)
     }
     cat(paste(i,"/",bootstrap))
   }

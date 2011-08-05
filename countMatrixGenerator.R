@@ -1,7 +1,5 @@
 #! /usr/bin/env Rscript
 
-#job <- commandArgs()[6]
-
 empty.df<- function(cnames, rnames, default=NA){
   
   df<-data.frame(matrix(rep(default,length(cnames)*length(rnames)), nrow=length(rnames)))
@@ -57,12 +55,20 @@ matrixGenerator <- function(lst) {
     water[i,] <- counts["WATER",] / apply(counts[c(anames, "WATER"),,], 2, sum)
   }
 
-
-  counts <- counts[-c(21,22,24),]
-
-  for (i in 1:ncol(counts)) {
-    counts[,i] <- counts[,i] / sum(counts[,i])
+  for (j in 1:ncol(counts)) {
+    counts[22,j] <- counts[22,j] / counts[24,j]
+    if (sum(counts[1:20,j]) == 0) {
+      counts[1:20,j] <- 0
+    }
+    else
+      {counts[1:20,j] <- counts[1:20,j] / sum(counts[1:20,j])
+     }
+    counts[1:20,j] <- counts[1:20,j] * (1-counts[22,j])
   }
+
+  
+  counts <- counts[-c(21,23,24),]
+  
   return(counts)
 }
 
