@@ -339,7 +339,11 @@ class Protein:
                 print "Skipping type %s" % r.getType()
 
        return scounts
-                       
+
+    def removeBackboneAttribute(self):
+       for r in self.residues:
+          for a in r.getAtoms():
+             a.backbone = False
 
     def fromData(self, residues, pid):
         self.residues = residues

@@ -2,14 +2,18 @@
 import sys
 from psurf import *
 
-if(len(sys.argv) != 5):
-    print "Usage: [countSurfacecontacts.py] [surf_id list] [output] [cutoff] [ionic only]"
+if(len(sys.argv) != 6):
+    print "Usage: [countSurfacecontacts.py] [surf_id list] [output] [cutoff] [ionic only] [include backbone]"
     exit()
 
 surfCutoff = float(sys.argv[3])
 ionicOnly = False
 if(sys.argv[4] in ['T', 't', 'True', 'true']):
     ionicOnly = True
+
+backbone = False
+if(sys.argv[5] in ['T', 't', 'True', 'true']):
+    backbone = True
 
 if(ionicOnly):
     print "Disabling non-ionic radii"
@@ -70,6 +74,8 @@ for i in pdbIDs:
     output = []
     clearCounts()
     p = readProteinSA(i)
+    if(backbone):
+        p.removeBackboneAttribute()
     print i,
     for r1 in range(len(p)):
         res1 = p.residues[r1]
