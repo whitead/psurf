@@ -60,13 +60,18 @@ freeEnergyModel <- function(countMatrix,distriNum,pfracs,hydration) {
     for (j in 1:ncol(pfracs[[i]])) {
        Y <- array(0, length(sfracGrEL[[Num]]))
        for (k in 1:length(sfracGrEL[[Num]])) {
-         Y[k] <- InterfaceCount[which(rownames(InterfaceCount) == colnames(pfracs[[i]][j])), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * sfracGrEL[[Num]][k] * (1-hydration) + InterfaceCount[which(rownames(InterfaceCount) == "WATER"), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * 1 * hydration
+         Y[k] <- InterfaceCount[which(rownames(InterfaceCount) == colnames(pfracs[[i]][j])), which(colnames(InterfaceCount) == names(sfracGrEL[[Num]][k]))] * sfracGrEL[[Num]][k] * (1-hydration)
        }
-       sigmaY <- log(sum(Y), base = exp(1))
+       if (sum(Y) == 0) {
+         sigmaY <- InterfaceCount[which(rownames(InterfaceCount) == "WATER"), which(colnames(InterfaceCount) == colnames(pfracs[[i]][j]))] * 1 * hydration
+       } else {
+         sigmaY <- sum(Y) + InterfaceCount[which(rownames(InterfaceCount) == "WATER"), which(colnames(InterfaceCount) == colnames(pfracs[[i]][j]))] * 1 * hydration
+       }
+       sigmaY <- log(sigmaY, base = exp(1))
+#       print(sigmaY)
        X[j] <- mean(pfracs[[i]][,j]) * sigmaY
      }
     sigmaXln[i] <- sum(X)
-    print(sigmaXln[i])
     sigmaX[i] <- exp(sum(X))
   }
   deltaG <- array(0,2)
