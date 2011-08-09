@@ -61,11 +61,10 @@ def incrementCount(t1, t2):
 
 output = []
 
-output.append("%-5s %-8s " % ("pdb_id", "res_type"))
-for i in range(len(counts[0])):
-    output.append("%6s " % AAs[i])
-
-output.append("\n")
+output.append("%-5s, %-8s, " % ("pdb_id", "res_type"))
+for i in range(len(counts[0]) - 1):
+    output.append("%6s, " % AAs[i])
+output.append("%6s\n" % AAs[-1])
 
 with open(sys.argv[2], 'w') as f:
     f.write("".join(output))
@@ -98,19 +97,19 @@ for i in pdbIDs:
     print ""
 
     for j in range(len(counts)):
-        output.append("%-5s " % p.getName())
+        output.append("%-5s, " % p.getName())
         if(j < len(AAs)):
-            output.append("%-8s " % AAs[j])
+            output.append("%-8s, " % AAs[j])
         elif(j == len(AAs)):
-            output.append("%-8s " % "WATER")
+            output.append("%-8s, " % "WATER")
         elif(j == len(AAs) + 1):
             output.append("%-8s " % "HYDRATED")
         elif(j == len(AAs) + 2):
-            output.append("%-8s " % "FREE")
+            output.append("%-8s, " % "FREE")
         else:
-            output.append("%-8s " % "TOTAL")
-        for k in range(len(counts[j])):
-            output.append("%6g " % counts[j][k])
-        output.append("\n")
+            output.append("%-8s, " % "TOTAL")
+        for k in range(len(counts[j])- 1):
+            output.append("%6g, " % counts[j][k])
+        output.append("%6g\n" % counts[j][-1])
     with open(sys.argv[2], 'a') as f:
         f.write("".join(output))
