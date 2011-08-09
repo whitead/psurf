@@ -54,24 +54,17 @@ matrixGenerator <- function(lst) {
     interaction[i,] <- 1 - counts["FREE",] / counts["TOTAL",]
     water[i,] <- counts["WATER",] / apply(counts[c(anames, "WATER"),,], 2, sum)
   }
-  print(counts)
+#  print(counts)
 
 
   for (j in 1:ncol(counts)) {
-    counts["WATER",j] <- counts["WATER",j] / sum(counts[1:21,j])
-    if (sum(counts[1:20,j]) == 0) {
-      counts[1:20,j] <- 0
+    if (sum(counts[1:21,j]) == 0) {
+      counts[1:21,j] <- 0
     }
     else
-      {counts[1:20,j] <- counts[1:20,j] / sum(counts[1:20,j])
+      {counts[1:21,j] <- counts[1:21,j] / sum(counts[1:21,j])
      }
-    counts[1:20,j] <- counts[1:20,j] * (1-counts["HYDRATED",j])
     }
-  temp <- sum(counts["WATER",])
-  for (k in 1:ncol(counts)) {
-    counts["WATER",k] <- counts["WATER",k] / temp
-  }
-  
   counts <- counts[-c(22,23,24),]
   
   return(counts)
