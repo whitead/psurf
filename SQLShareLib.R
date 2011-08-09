@@ -7,7 +7,7 @@ username <- "whitead"
 apikey <- "58f90137316aedb538b85a54955173c0"
 
 cutoff <- 0.3
-aalist <- c("ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LYS", "MET", "PHE", "SER", "THR", "TRP", "TYR", "VAL")
+aalist <- c("ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL")
 aalist.sh <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
 labels.sh.ord <- c("K", "R", "H", "E", "D", "N", "Q", "G", "S", "T", "A", "I", "L", "M", "P", "V", "C", "F", "W", "Y")
 
@@ -121,7 +121,7 @@ fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE) {
       if(normalize) {
         rs.table <- rs.table / sum(rs.table)
       } 
-      data[curid,names(rs.table)[j]] <- rs.table[j]
+      data[pastid,names(rs.table)[j]] <- rs.table[j]
     }
   }
   
@@ -154,7 +154,7 @@ fetchAllBuriedResidues <- function(dataset, cutoff, normalize=FALSE) {
     rs <- c()
     while(pastid == curid) {
       rs <- c(rs, rlist[[1]][[i]][2])
-      if(i >= length(rlist[[1]])) {
+      if(i == length(rlist[[1]])) {
         i <- i + 1
         break
       }
@@ -166,7 +166,7 @@ fetchAllBuriedResidues <- function(dataset, cutoff, normalize=FALSE) {
       if(normalize) {
         rs.table <- rs.table / sum(rs.table)
       } 
-      data[curid,names(rs.table)[j]] <- rs.table[j]
+      data[pastid,names(rs.table)[j]] <- rs.table[j]
     }
   }
   
