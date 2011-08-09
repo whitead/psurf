@@ -145,7 +145,7 @@ class Residue:
                for a in self.atoms:
                   for b in other.atoms:
                      if(a.getType()[0] != "H" and b.getType() != "H"):
-                        if((not countBackbone and (not a.backbone and not b.backbone) or (countBackbone and not (a.backbone and b.backbone))):
+                        if((not countBackbone and (not a.backbone and not b.backbone) or (countBackbone and not (a.backbone and b.backbone)))):
                            if(a.inContact(b)):
                               return True
       return False

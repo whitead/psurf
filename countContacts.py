@@ -73,8 +73,6 @@ for i in pdbIDs:
     output = []
     clearCounts()
     p = readProteinSA(i)
-    if(backbone):
-        p.removeBackboneAttribute()
     print i,
     for r1 in range(len(p)):
         res1 = p.residues[r1]
