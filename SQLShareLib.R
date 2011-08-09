@@ -29,7 +29,7 @@ FALSE)
 }
 
 #Get the PDB IDs for the given dataset
-fetchPDBIDs <- function(dataset) {
+fetchPDBIDs <- function(dataset, username=username, apikey=apikey) {
 
   sql = paste("select pdb_id FROM [", username, "@washington.edu].[",dataset,"_1.csv]",sep="")
   idlist <- fetchdata(sql)
@@ -42,7 +42,7 @@ fetchPDBIDs <- function(dataset) {
 }
 
 #Get the number of residues for each PDB in the given dataset
-fetchLengths <- function(dataset) {
+fetchLengths <- function(dataset, username=username, apikey=apikey) {
   sql = paste("SELECT res_num FROM [", username, "@washington.edu].[",
     dataset,"_1.csv]",sep="")
   sqlList <- fetchdata(sql)
@@ -54,7 +54,7 @@ fetchLengths <- function(dataset) {
 }
 
 #Get the charge and surface areas for each PDB in the given dataset
-fetchChargeAndSA <- function(dataset) {
+fetchChargeAndSA <- function(dataset, username=username, apikey=apikey) {
 
   sql = paste("select charge,surface_area FROM [", username, "@washington.edu].[",dataset,"_1.csv] WHERE charge IS NOT NULL",sep="")
   sqlList <- fetchdata(sql)
@@ -71,7 +71,7 @@ fetchChargeAndSA <- function(dataset) {
 }
 
 #Get the list of surface residues in the given pdbid, where surface means their surface area ratio is greater than the given cutoff
-fetchSurfResidues <- function(dataset, cutoff, pdbid) {
+fetchSurfResidues <- function(dataset, cutoff, pdbid, username=username, apikey=apikey) {
   sql = paste("SELECT res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE pdb_id =\'", pdbid, "\' AND res_surface_area_ratio > ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
 
@@ -84,7 +84,7 @@ fetchSurfResidues <- function(dataset, cutoff, pdbid) {
 }
 
 #Get all the surface residues in the given dataset. Normalize turns it into a list of distributions (one per PDB).
-fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE) {
+fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=username, apikey=apikey) {
   sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
 
@@ -129,7 +129,7 @@ fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE) {
 }
 
 #Gets all the residues below the given cutoff, same as fetchAllSurfResidues
-fetchAllBuriedResidues <- function(dataset, cutoff, normalize=FALSE) {
+fetchAllBuriedResidues <- function(dataset, cutoff, normalize=FALSE, username=username, apikey=apikey) {
   sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio < ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
 
@@ -174,7 +174,7 @@ fetchAllBuriedResidues <- function(dataset, cutoff, normalize=FALSE) {
 }
 
 #Fetch pairs in the given PDBid.
-fetchResiduePairs <- function(dataset, cutoff, pdbid, symm=TRUE, counter=NULL) {
+fetchResiduePairs <- function(dataset, cutoff, pdbid, symm=TRUE, counter=NULL, username=username, apikey=apikey) {
 
   if(is.null(counter)) {
     counter <- empty.paircounter(aalist, aalist)
@@ -210,7 +210,7 @@ fetchResiduePairs <- function(dataset, cutoff, pdbid, symm=TRUE, counter=NULL) {
 }
 
 #Fetch pairs for a dataset, where the pairs are coming from the dataset_pairs table in SQLShare
-fetchAllResiduePairs <- function(dataset, pdbIDs=fetchPDBIDs(dataset), symm=TRUE) {
+fetchAllResiduePairs <- function(dataset, pdbIDs=fetchPDBIDs(dataset), symm=TRUE, username=username, apikey=apikey) {
 
 
   sql = paste("SELECT * FROM [whitead@washington.edu].[",dataset,"_pairs]" ,sep="")
@@ -244,7 +244,7 @@ fetchAllResiduePairs <- function(dataset, pdbIDs=fetchPDBIDs(dataset), symm=TRUE
 }
 
 #Fetch all triplets, where they are coming from the triplets table
-fetchAllResidueTriplets <- function(dataset, symm=TRUE) {
+fetchAllResidueTriplets <- function(dataset, symm=TRUE, username=username, apikey=apikey) {
 
   sql = paste("SELECT * FROM [whitead@washington.edu].[",dataset,"_triplets]" ,sep="")
   rlist <- fetchdata(sql)
@@ -258,7 +258,7 @@ fetchAllResidueTriplets <- function(dataset, symm=TRUE) {
 }
 
 #Get the fraction of surface residues for the given pdbid
-getSurfFrac <- function(dataset, cutoff, pdbid) {
+getSurfFrac <- function(dataset, cutoff, pdbid, username=username, apikey=apikey) {
   residues <- fetchSurfResidues(dataset,cutoff,pdbid)
   fracs <- rep(0,length(aalist))
   names(fracs) <- aalist
