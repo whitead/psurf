@@ -1,86 +1,11 @@
 #! /usr/bin/env Rscript
 
-sourcex("SQLShareLib.R")
+source("SQLShareLib.R")
 
 job <- commandArgs()[6]
 data <- fetchFrame(job)
 anames <- colnames(data[-c(1,2)])
 rnum <- length(anames)
-
-matPlot <- function(x) {
-
-  rownames(x) <- aalist.one
-  colnames(x) <- c(aalist.one, "*")
-
-  return(as.matrix(x[labels.ord, labels.ord.f]))
-
-}
-
-error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
-  if(length(x) != length(y) | length(y) !=length(lower) | length(lower) != length(upper))
-    stop("vectors must be same length")
-arrows(x,y+upper, x, y-lower, angle=90, code=3, length=length, ...)
-}
-
-calculateBackground <- function(counts) {
-  bpairs <- empty.df(c(anames, "FREE"), anames, default=0)
-  for(i in 1:(rnum)) {
-    for(j in 1:rnum) {
-      bpairs[i,j] <- as.double(sum(counts[j,])) / sum(counts[anames,]) * (counts["TOTAL", i] - counts["FREE", i]) / counts["TOTAL",i]
-    }
-    bpairs[i,j + 1] <- as.double(counts["FREE", i]) / counts["TOTAL",i]
-  }
-
-  return(bpairs)
-}
-
-calculatePairs <- function(counts) {
-  ppairs <- empty.df(c(anames, "FREE"), anames, default=0)
-
-  for(i in 1:rnum) {
-    for(j in 1:rnum) {
-      ppairs[i,j] <- as.double(counts[i,j]) / sum(counts[i,]) * (counts["TOTAL", i] - counts["FREE", i]) / counts["TOTAL",i]
-    }
-    ppairs[i,rnum + 1] <- counts["FREE", i] / counts["TOTAL", i]
-  }
-
-  return(ppairs)
-}
-
-empty.df<- function(cnames, rnames, default=NA){
-  
-  df<-data.frame(matrix(rep(default,length(cnames)*length(rnames)), nrow=length(rnames)))
-  colnames(df)<-cnames
-  rownames(df) <- rnames
-  return(df)
-}
-
-sampleCounts <- function(turnOffC=FALSE) {
-
-  ids <- unique(data[,"pdb_id"])
-  indices <- sample(length(ids), replace=TRUE)
-
-  counts <- empty.df(anames, data[data[,"pdb_id"] == ids[1],"res_type"], default=0)
-
-  cat("\n")
-  for(i in 1:length(indices)) {
-    temp <- data[data[,"pdb_id"] == ids[indices[i]], anames]
-    for(j in 1:length(temp)) {
-      counts[j] <- counts[j] + temp[j]
-    }
-    cat(paste("\r", i,"/", length(indices)))
-  }
-  cat("\n")
-
-  if(turnOffC) {
-    counts["CYS", "CYS"] <- 0 
-  }
-  
-  return(counts)
-
-}
-
-save.image()
 
 bootstrap <- 250
 interaction <- data.frame(matrix(rep(0,bootstrap * length(aalist.sh)), nrow=bootstrap))
