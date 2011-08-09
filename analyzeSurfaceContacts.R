@@ -1,19 +1,16 @@
 #! /usr/bin/env Rscript
 
+sourcex("SQLShareLib.R")
+
 job <- commandArgs()[6]
-data <- read.table(job, header=T)
+data <- fetchFrame(job)
 anames <- colnames(data[-c(1,2)])
 rnum <- length(anames)
 
-labels.ord <- c("K", "R", "H", "E", "D", "N", "Q", "G", "S", "T", "A", "I", "L", "M", "P", "V", "C", "F", "W", "Y")
-labels.one <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
-labels.ord.f <- c("K", "R", "H", "E", "D", "N", "Q", "G", "S", "T", "A", "I", "L", "M", "P", "V", "C", "F", "W", "Y", "*")
-labels.one.f <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V", "*")
-
 matPlot <- function(x) {
 
-  rownames(x) <- labels.one
-  colnames(x) <- labels.one.f
+  rownames(x) <- aalist.one
+  colnames(x) <- c(aalist.one, "*")
 
   return(as.matrix(x[labels.ord, labels.ord.f]))
 
@@ -86,11 +83,11 @@ sampleCounts <- function(turnOffC=FALSE) {
 save.image()
 
 bootstrap <- 250
-interaction <- data.frame(matrix(rep(0,bootstrap * length(labels.one)), nrow=bootstrap))
-colnames(interaction) <- labels.one
+interaction <- data.frame(matrix(rep(0,bootstrap * length(aalist.sh)), nrow=bootstrap))
+colnames(interaction) <- aalist.sh
 
-water <- data.frame(matrix(rep(0,bootstrap * length(labels.one)), nrow=bootstrap))
-colnames(water) <- labels.one
+water <- data.frame(matrix(rep(0,bootstrap * length(aalist.sh)), nrow=bootstrap))
+colnames(water) <- aalist.sh
 
 for(i in 1:bootstrap) {
   counts <- sampleCounts()
@@ -108,16 +105,15 @@ gi <- which(colnames(wyy) == "G")
 wyy <- wyy[,-gi]
 iyy <- iyy[,-gi]
 
-png("contact_plots.png", width=3.3*500,height=4.5*500, pointsize=8, res=500)
-par(family="LMRoman10", mfrow=c(2,1), cex.axis=0.65, mar=c(2,4,1,0.5))
+tiff("contact_plots.tiff", width=3.3*500,height=4.5*500, pointsize=8, res=500)
+par(family="LMSans10", mfrow=c(2,1), cex.axis=0.65, mar=c(2,4,1,0.5))
 
-xp <- barplot(iyy[2,], ylim=c(0,max(iyy[3,] + 0.03)), ylab="Proportion Interacting", col="light blue")
+xp <- barplot(iyy[2,], ylim=c(0,max(iyy[3,] + 0.03)), ylab="Proportion Interacting", col="light gray")
 error.bar(xp, iyy[2,], lower=(iyy[2,] - iyy[1,]), upper=(iyy[3,] - iyy[2,]), length=0.03)
-
 
 par(mar=c(3,4,2,0.5))
 
-xp <- barplot(wyy[2,], ylim=c(0,max(wyy[3,] + 0.03)), ylab="Water per Contact", col="light blue")
+xp <- barplot(wyy[2,], ylim=c(0,max(wyy[3,] + 0.03)), ylab="Water per Contact", col="light gray")
 error.bar(xp, wyy[2,], lower=(wyy[2,] - wyy[1,]), upper=(wyy[3,] - wyy[2,]), length=0.03)
 graphics.off()
 

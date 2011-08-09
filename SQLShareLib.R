@@ -13,19 +13,38 @@ labels.sh.ord <- c("K", "R", "H", "E", "D", "N", "Q", "G", "S", "T", "A", "I", "
 
 #Get raw data for the given query
 fetchdata <- function(sql) {
-  host = "https://sqlshare-rest.cloudapp.net"
-  selector = "/REST.svc/v1/db/file"
-  query=paste("?sql=",URLencode(sql),sep="")
+  host <- "https://sqlshare-rest.cloudapp.net"
+  selector <- "/REST.svc/v1/db/file"
+  query<-paste("?sql=",URLencode(sql),sep="")
 
-  data = getURL(paste(host,selector,query,sep=""),
-httpheader=c(Authorization =paste("ss_apikey ", myUsername, "@washington.edu :", apikey, sep="")), verbose = FALSE, ssl.verifypeer =
-FALSE)
+  data <- getURL(paste(host,selector,query,sep=""),
+httpheader=c(Authorization =paste("ss_apikey ", myUsername, "@washington.edu :", apikey, sep="")), verbose = FALSE, ssl.verifypeer = FALSE)
 
   splitrow <- function(row) strsplit(row, "\t")
 
-  rdata = lapply(strsplit(data,"\r\n"),splitrow)
+  rdata <- lapply(strsplit(data,"\r\n"),splitrow)
 
   return(rdata)
+}
+
+fetchFrame <- function(tableName, username=myUsername) {
+
+  sql <- paste("select * FROM [", username, "@washington.edu].[", tableName, "]", sep="")
+  rawData <- fetchdata(sql)
+
+  rnames <- c()
+  for(i in 2:length(rawData[[1]])) {
+    rnames <- c(rawData[[1]][[i]][1])
+  }
+  
+  data <- empty.df(rawData[[1]][[1]][-1], rnames)
+  for(i in 2:length(rawData[[1]])) {
+    for(j in 2:length(rawData[[1]][[i]])) {
+      data[rawData[[1]][[i]][1], rawData[[1]][[1]][j]] <- rawData[[1]][[i]][j]
+    }
+  }
+  
+  return(data)
 }
 
 #Get the PDB IDs for the given dataset
