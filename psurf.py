@@ -36,6 +36,7 @@ OPLSSigmas = {'N':3.25, 'O':2.96, 'C':3.75, 'S':3.55, 'H':0.00, 'HOH':3.1507}
 backbone = ['N', 'O', 'CA', 'C']
 
 aaSA = {'ALA':113, 'ARG':241, 'ASP':151, 'ASN':158, 'CYS':140, 'GLN':189, 'GLU':183, 'GLY':85, 'HIS':194, 'ILE':182, 'LEU':180, 'LYS':211, 'MET':204, 'PHE':218, 'PRO':143, 'SER':122, 'THR':146, 'TRP':259, 'TYR':229, 'VAL':160}
+AAs = conversion.keys()
 surfCutoff = 0.4
 
 class Atom: 
