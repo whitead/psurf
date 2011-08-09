@@ -80,14 +80,14 @@ for i in pdbIDs:
         res1 = p.residues[r1]
         if(res1.isSurf() or res1.isHydrated()):
             contact = False
-            hydrationNumber = res1.hydrationNumber()
+            hydrationNumber = res1.hydrationNumber(backbone)
             if(hydrationNumber > 0):
                 incrementCount("HYDRATED", res1.getType())
                 for h in range(hydrationNumber):
                     incrementCount("WATER", res1.getType())
             for r2 in range(len(p)):
                 res2 = p.residues[r2]
-                if(not res1.isNeighbor(res2) and res1.inContact(res2)):
+                if(not res1.isNeighbor(res2) and res1.inContact(res2, backbone)):
                     incrementCount(res1.getType(), res2.getType())
                     contact = True
             if(not contact):

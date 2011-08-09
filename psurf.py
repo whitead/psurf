@@ -137,7 +137,7 @@ class Residue:
    def setParent(self, p):
       self.parent = p
           
-   def inContact(self, other):
+   def inContact(self, other, countBackbone=False):
 
       if(self != other):
          if(self.getCA() != None and other.getCA() != None):
@@ -145,15 +145,15 @@ class Residue:
                for a in self.atoms:
                   for b in other.atoms:
                      if(a.getType()[0] != "H" and b.getType() != "H"):
-                        if(not a.backbone and not b.backbone):
+                        if((not countBackbone and (not a.backbone and not b.backbone) or (countBackbone and not (a.backbone and b.backbone))):
                            if(a.inContact(b)):
                               return True
       return False
 
-   def inWaterContact(self, waterAtom):
+   def inWaterContact(self, waterAtom, countBackbone = False):
       if(self.getCA() != None and  self.getCA().distanceSqr(waterAtom) < 10 ** 2):
          for a in self.atoms:            
-            if(a.getType()[0] != "H" and (not a.backbone)):
+            if(a.getType()[0] != "H" and (countBackbone or not a.backbone)):
                if(a.inContact(waterAtom)):
                   return True
       return False
@@ -170,11 +170,11 @@ class Residue:
       self.hydrated = False
       return False
 
-   def hydrationNumber(self):
+   def hydrationNumber(self, countBackbone=False):
       count = 0
       if(self.parent != None):
          for water in self.parent.waters:
-            if(self.inWaterContact(water)):
+            if(self.inWaterContact(water, countBackbone)):
                count += 1
       return count
 
@@ -327,11 +327,6 @@ class Protein:
                 print "Skipping type %s" % r.getType()
 
        return scounts
-
-    def removeBackboneAttribute(self):
-       for r in self.residues:
-          for a in r.getAtoms():
-             a.backbone = False
 
     def fromData(self, residues, pid):
         self.residues = residues
