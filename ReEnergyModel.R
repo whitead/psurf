@@ -1,6 +1,9 @@
-source("SQLShareLib.R")
+source("SQLShareLib_Wenjun.R")
 
-groDist <- fetchFrame("groeldist.csv", username="wenjunh")
+groDist <- fetchFrame("groel_insurfres_count.csv", username="wenjunh")
+
+groDist["GroEL_Close", ] <- as.integer(groDist["GroEL_Close", ]) / sum(as.integer(groDist["GroEL_Close", ]))
+groDist["GroEL_Open", ] <- as.integer(groDist["GroEL_Open", ]) / sum(as.integer(groDist["GroEL_Open", ]))
 
 energyCycle <- function(protein, distribution) {
   countMatrix <- sampleCounts(distribution)
@@ -28,7 +31,7 @@ energyCycle <- function(protein, distribution) {
   return(ener)
 }
 
-freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=10000) {
+freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=1) {
 
   Num <- distriNum
   
@@ -52,7 +55,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=10000) {
        Y <- array(0, length(yDist))
        for (k in 1:length(yDist)) {
          Y[k] <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])]) +
-           water[colnames(pfracs[[i]][j]))] * countMatrix["WATER", names(yDist[k]))] * yDist[k] 
+           water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
        }
        print(Y)
        sigmaY <- log(sum(Y))
