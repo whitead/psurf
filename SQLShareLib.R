@@ -29,8 +29,8 @@ httpheader=c(Authorization =paste("ss_apikey ", myUsername,
   return(rdata)
 }
 
-#Turn an SQL table into a dataframe
-fetchFrame <- function(tableName, username=myUsername) {
+#Turn an SQL contacts table into a dataframe
+fetchContacts <- function(tableName, username=myUsername) {
 
   sql <- paste("select * FROM [", username, "@washington.edu].[", tableName, "]", sep="")
   rawData <- fetchdata(sql)
@@ -39,19 +39,26 @@ fetchFrame <- function(tableName, username=myUsername) {
 
   cat(paste("Fetching", tableName, "\n"))
   data <- empty.df(rawData[[1]][[1]], rnames)
-  for(i in 2:length(rawData[[1]])) {
-    cat(paste("\r",i -1,"/",length(rnames)))
-    data[i - 1, c(-1,-2)] <- sapply(rawData[[1]][[i]][-c(1,2)], as.integer)
-    data[i - 1, 1:2] <- rawData[[1]][[i]][1:2]
-  }
-  cat("\n")
+
+  lconvert <- function(row) {sapply(row[-c(1,2)], as.integer)}
+
+
+  temp <- lapply(rawData[[1]][-1], lconvert)
+  data[,-c(1,2)] <- matrix(unlist(temp), ncol=ncol(data) - 2, byrow=T)
+
+  lconvert <- function(row) {row[1:2]}
+  temp <- lapply(rawData[[1]][-1], lconvert)
   
+  data[,1:2] <- matrix(unlist(temp), ncol=2, byrow=T)
+  
+  return(data)
+    
   return(data)
 }
 
 #Given a dataframe containing contact matrices for a list of pdb_ids,
 #this will turn it into a single contact matrix using a random sample of the pdb_ids (with replacement)
-sampleCounts <- function(countDataFrame, turnOffC=FALSE) {
+sampleContacts <- function(countDataFrame, turnOffC=FALSE) {
 
   ids <- unique(countDataFrame[,1])
   indices <- sample(length(ids), replace=TRUE)
@@ -59,13 +66,13 @@ sampleCounts <- function(countDataFrame, turnOffC=FALSE) {
 
   counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
 
-  cat("\n")
+  cat("sampling...")
   for(i in 1:length(indices)) {
     temp <- countDataFrame[countDataFrame[,1] == ids[indices[i]], anames]
     for(j in 1:length(temp)) {
       counts[j] <- counts[j] + temp[j]
     }
-    cat(paste("\r", i,"/", length(indices)))
+    cat(paste("\rsampling...", i,"/", length(indices)))
   }
   cat("\n")
 
@@ -147,7 +154,7 @@ fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUs
   for(i in 2:length(plist[[1]])) {
     pdbids[i - 1] <- plist[[1]][[i]][1]
   }
-  
+
   data <- empty.df(aalist, pdbids, default=0)
   curid <- NULL
   i <- 2

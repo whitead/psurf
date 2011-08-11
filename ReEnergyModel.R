@@ -1,21 +1,24 @@
-source("SQLShareLib_Wenjun.R")
+source("SQLShareLib.R")
 
-groDist <- fetchFrame("groel_insurfres_count.csv", username="wenjunh")
+sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
+rawData <- fetchdata(sql)
+groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][[3]][1]))
+groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=2, byrow=T)
 
 groDist["GroEL_Close", ] <- as.integer(groDist["GroEL_Close", ]) / sum(as.integer(groDist["GroEL_Close", ]))
 groDist["GroEL_Open", ] <- as.integer(groDist["GroEL_Open", ]) / sum(as.integer(groDist["GroEL_Open", ]))
 
-energyCycle <- function(protein, distribution) {
-  countMatrix <- sampleCounts(distribution)
+energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username)) {
+  countMatrix <- sampleContacts(contacts)
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
   cutoff <- 0.3
-  pfracsfold <- fetchAllSurfResidues(protein, cutoff, normalize=TRUE)
-  pidsfold <- fetchPDBIDs(protein)
+  pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+  pidsfold <- fetchPDBIDs(dataset, username)
 
   cutoff <- -1.0
-  pfracsunfold <- fetchAllSurfResidues(protein, cutoff, normalize=TRUE)
-  pidsunfold <- fetchPDBIDs(protein)
+  pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+  pidsunfold <- fetchPDBIDs(dataset, username)
 
 
   pfracs <- list(pfracsfold, pfracsunfold)
@@ -25,21 +28,22 @@ energyCycle <- function(protein, distribution) {
   ener <- c(Gclose,Gopen)
   names(ener) <- c("Gclose","Gopen")
 
-  ener["Gclose"] <- freeEnergyModel(countMatrix, groDist["Close", ], pfracs)
-  ener["Gopen"] <- freeEnergyModel(countMatrix, groDist["Open", ], pfracs)
+  ener[1] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs)
+  ener[2] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs)
 
   return(ener)
 }
 
 freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=1) {
 
-  Num <- distriNum
-  
   water <- array(0,ncol(countMatrix))
   for (l in 1:ncol(countMatrix)) {
     water[l] <- countMatrix["WATER",l] / sum(countMatrix["WATER",])
   }
   names(water) <- colnames(countMatrix)
+
+  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
+  
   print(water)
   print(countMatrix)
   
@@ -53,9 +57,12 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=1) {
     X <- array(0, ncol(pfracs[[i]]))
     for (j in 1:ncol(pfracs[[i]])) {
        Y <- array(0, length(yDist))
+       print(Y)
        for (k in 1:length(yDist)) {
+         print(Y[k])
          Y[k] <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])]) +
            water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
+         print(Y[k])
        }
        print(Y)
        sigmaY <- log(sum(Y))
@@ -73,19 +80,19 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=1) {
 
 }
 
-energybootstrap <- function(bootstrap,protein,distribution) {
+energybootstrap <- function(bootstrap,dataset,contacts) {
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
   cutoff <- 0.3
-  pfracsfold <- fetchAllSurfResidues(protein, cutoff, normalize=TRUE)
-  pidsfold <- fetchPDBIDs(protein)
+  pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE)
+  pidsfold <- fetchPDBIDs(dataset)
 
   colnames(pfracsfold) <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   pfracsfold <- pfracsfold[,order(colnames(pfracsfold))]
   
   cutoff <- -1.0
-  pfracsunfold <- fetchAllSurfResidues(protein, cutoff, normalize=TRUE)
-  pidsunfold <- fetchPDBIDs(protein)
+  pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE)
+  pidsunfold <- fetchPDBIDs(dataset)
 
   colnames(pfracsunfold) <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   pfracsunfold <- pfracsunfold[,order(colnames(pfracsunfold))]
@@ -100,7 +107,7 @@ energybootstrap <- function(bootstrap,protein,distribution) {
   ener <- list(Gclose,Gopen)
   names(ener) <- c("Gclose","Gopen")
   for (i in 1:bootstrap) {    
-    countMatrix <- matrixGenerator(distribution)
+    countMatrix <- matrixGenerator(contacts)
     for (distriNum in 1:2) {
       ener[[distriNum]][i,] <- freeEnergyModel(countMatrix, distriNum, pfracs)
     }
@@ -112,3 +119,4 @@ energybootstrap <- function(bootstrap,protein,distribution) {
 
 
 
+energyCycle("ecoli", "wenjunh")
