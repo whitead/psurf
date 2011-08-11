@@ -3,7 +3,9 @@
 source("SQLShareLib.R")
 
 job <- commandArgs()[6]
+
 data <- fetchFrame(job)
+save.image()
 anames <- colnames(data[-c(1,2)])
 rnum <- length(anames)
 
@@ -15,7 +17,7 @@ water <- data.frame(matrix(rep(0,bootstrap * length(aalist.sh)), nrow=bootstrap)
 colnames(water) <- aalist.sh
 
 for(i in 1:bootstrap) {
-  counts <- sampleCounts()
+  counts <- sampleCounts(data)
   interaction[i,] <- 1 - counts["FREE",] / counts["TOTAL",]
   water[i,] <- counts["WATER",] / apply(counts[c(anames, "WATER"),,], 2, sum)
   cat("\r",i,"/",bootstrap)
@@ -41,4 +43,3 @@ par(mar=c(3,4,2,0.5))
 xp <- barplot(wyy[2,], ylim=c(0,max(wyy[3,] + 0.03)), ylab="Water per Contact", col="light gray")
 error.bar(xp, wyy[2,], lower=(wyy[2,] - wyy[1,]), upper=(wyy[3,] - wyy[2,]), length=0.03)
 graphics.off()
-

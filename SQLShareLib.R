@@ -18,7 +18,9 @@ fetchdata <- function(sql) {
   query<-paste("?sql=",URLencode(sql),sep="")
 
   data <- getURL(paste(host,selector,query,sep=""),
-httpheader=c(Authorization =paste("ss_apikey ", myUsername, "@washington.edu :", apikey, sep="")), verbose = FALSE, ssl.verifypeer = FALSE)
+httpheader=c(Authorization =paste("ss_apikey ", myUsername,
+"@washington.edu :", apikey, sep="")), verbose = FALSE, ssl.verifypeer
+                 = FALSE, ssl.verifyhost=FALSE, .encoding="UTF-8")
 
   splitrow <- function(row) strsplit(row, "\t")
 
@@ -27,24 +29,52 @@ httpheader=c(Authorization =paste("ss_apikey ", myUsername, "@washington.edu :",
   return(rdata)
 }
 
+#Turn an SQL table into a dataframe
 fetchFrame <- function(tableName, username=myUsername) {
 
   sql <- paste("select * FROM [", username, "@washington.edu].[", tableName, "]", sep="")
   rawData <- fetchdata(sql)
 
-  rnames <- c()
+  rnames <- (1:(length(rawData[[1]]) - 1))
+
+  cat(paste("Fetching", tableName, "\n"))
+  data <- empty.df(rawData[[1]][[1]], rnames)
   for(i in 2:length(rawData[[1]])) {
-    rnames <- c(rawData[[1]][[i]][1])
+    cat(paste("\r",i -1,"/",length(rnames)))
+    data[i - 1, c(-1,-2)] <- sapply(rawData[[1]][[i]][-c(1,2)], as.integer)
+    data[i - 1, 1:2] <- rawData[[1]][[i]][1:2]
   }
-  
-  data <- empty.df(rawData[[1]][[1]][-1], rnames)
-  for(i in 2:length(rawData[[1]])) {
-    for(j in 2:length(rawData[[1]][[i]])) {
-      data[rawData[[1]][[i]][1], rawData[[1]][[1]][j]] <- rawData[[1]][[i]][j]
-    }
-  }
+  cat("\n")
   
   return(data)
+}
+
+#Given a dataframe containing contact matrices for a list of pdb_ids,
+#this will turn it into a single contact matrix using a random sample of the pdb_ids (with replacement)
+sampleCounts <- function(countDataFrame, turnOffC=FALSE) {
+
+  ids <- unique(countDataFrame[,1])
+  indices <- sample(length(ids), replace=TRUE)
+  anames <- colnames(countDataFrame)[-c(1,2)]
+
+  counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
+
+  cat("\n")
+  for(i in 1:length(indices)) {
+    temp <- countDataFrame[countDataFrame[,1] == ids[indices[i]], anames]
+    for(j in 1:length(temp)) {
+      counts[j] <- counts[j] + temp[j]
+    }
+    cat(paste("\r", i,"/", length(indices)))
+  }
+  cat("\n")
+
+  if(turnOffC) {
+    counts["CYS", "CYS"] <- 0 
+  }
+  
+  return(counts)
+
 }
 
 #Get the PDB IDs for the given dataset
