@@ -23,10 +23,10 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
 
   pfracs <- list(pfracsfold, pfracsunfold)
 
-  Gclose <- 0
-  Gopen <- 0
-  ener <- c(Gclose,Gopen)
-  names(ener) <- c("Gclose","Gopen")
+  Gclose <- c(0,0)
+  Gopen <- c(0,0)
+  ener <- list(Gclose,Gopen)
+  names(ener) <- list("Gclose","Gopen")
 
   ener[1] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs)
   ener[2] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs)
@@ -56,17 +56,13 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,bootstrap=1) {
   for (i in 1:2) { 
     X <- array(0, ncol(pfracs[[i]]))
     for (j in 1:ncol(pfracs[[i]])) {
-       Y <- array(0, length(yDist))
-       print(Y)
+       Y <- rep(0, length(yDist))
        for (k in 1:length(yDist)) {
-         print(Y[k])
-         Y[k] <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])]) +
-           water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
-         print(Y[k])
+         t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])])
+         t2 <- water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
+         Y[k] <- as.double(t1) + as.double(t2)
        }
-       print(Y)
        sigmaY <- log(sum(Y))
-       print(sigmaY)
        X[j] <- mean(pfracs[[i]][,j]) * sigmaY
      }
     sigmaXln[i] <- sum(X)
