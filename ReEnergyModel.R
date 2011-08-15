@@ -44,10 +44,8 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
 
   countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
   
-  print(water)
-  print(countMatrix)
-  
-  deltaGOpen <- array(0,1000)
+
+   deltaGOpen <- array(0,1000)
   deltaGClose <- array(0,1000)
 
   sigmaXln <- array(0,2)
@@ -108,8 +106,51 @@ energyBootstrap <- function(bootstrap,dataset,username=myUsername,
   return(ener)
 }
 
+minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
 
 
+  cutoff <- 0.3
+  pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+  pidsfold <- fetchPDBIDs(dataset, username)
 
-#energyCycle("ecoli", "wenjunh")
-energyBootstrap(1000, "ecoli", username="wenjunh")
+  cutoff <- -1.0
+  pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+  pidsunfold <- fetchPDBIDs(dataset, username)
+
+  deltaPs <- apply(pfracsfold, 2, median) - apply(pfracsunfold, 2, median)
+  countMatrix <- sampleContacts(contacts)
+
+  water <- array(0,ncol(countMatrix))
+  for (l in 1:ncol(countMatrix)) {
+    water[l] <- countMatrix["WATER",l] / sum(countMatrix["WATER",])
+  }
+  names(water) <- colnames(countMatrix)
+
+  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
+  
+  print(water)
+  print(countMatrix)
+  
+  
+  g <- function(dist) {
+    sum <- 0.
+    for(i in 1:length(deltaPs)) {
+      pxy <- 0.
+      for(j in 1:length(dist)) {
+        t1 <- countMatrix[i,j] * dist[j] * (1 - countMatrix["WATER", j])
+        t2 <- water[j] * countMatrix["WATER", j] * dist[j]
+        pxy <- pxy + as.double(t1) + as.double(t2)
+      }
+      sum <- sum + log(pxy) * deltaPs[i]
+    }
+    return(sum)
+  }
+
+  print(g(groDist["GroEL_Close",]))
+
+}
+
+
+energyCycle("ecoli", "wenjunh")
+#energyBootstrap(1000, "ecoli", username="wenjunh")
+minimizeEnergy("ecoli", "wenjunh")
