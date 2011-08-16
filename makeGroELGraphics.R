@@ -48,6 +48,6 @@ groDist[2, ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroE
 
 tiff("groELDist.tiff", width=3.3*500, height=2.5*500, pointsize=8, res=500)
 par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
-barplot(as.matrix(groDist[c(2,1),]), col=c("dark gray", "light gray"), main="", xlab="Amino Acid", ylab="Density", beside=T, names.arg=aalist.sh)
-legend("topright", col=c("dark gray", "light gray"), legend=c("GroEL Close", "GroEL Open"), ncol=1, pch=15)
+barplot(as.matrix(groDist[c(2,1),]), col=c("gray90", "gray25"), main="", xlab="Amino Acid", ylab="Density", beside=T, names.arg=aalist.sh)
+legend("topright", col=c("gray90", "gray25"), legend=c("GroEL Open", "GroEL Close"), ncol=1, pch=15)
 graphics.off()
