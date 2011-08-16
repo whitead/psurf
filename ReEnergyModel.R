@@ -143,12 +143,35 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
     return(sum)
   }
 
-  print(g(groDist["GroEL_Close",]))
-  print(g(groDist["GroEL_Open",]))
+#  print(g(groDist["GroEL_Close",]))
+#  print(g(groDist["GroEL_Open",]))
 
+  devI <- function(dist) {
+    dist <- dist[match(colnames(countMatrix),names(dist))]
+    devI <- array(0,length(dist))
+    names(devI) <- names(dist)
+    #print(countMatrix)
+    #print(deltaPs)
+    #print(dist)
+    #print(water)
+    for (i in 1:length(deltaPs)) {
+      for (j in 1:length(dist)) {
+        pxy <- 0.
+        for (k in 1:length(dist)) {
+          t1 <- countMatrix[i,k] * dist[k] * (1 - countMatrix["WATER", k])
+          t2 <- water[i] * countMatrix["WATER", k] * dist[k]
+          pxy <- pxy + as.double(t1) + as.double(t2)
+        }
+        d1 <- deltaPs[i] / pxy
+        d2 <- countMatrix[i,j] * (1 - countMatrix["WATER", j])
+        d3 <- water[i] * countMatrix["WATER", j]
+      }
+      devI[i] <- d1 * (d2 + d3)
+    }
+    return (devI)
+  }
+  print(devI(groDist["GroEL_Close",]))
 }
-
-
 #energyCycle("ecoli", "wenjunh")
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
