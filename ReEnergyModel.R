@@ -1,4 +1,4 @@
-source("SQLShareLib_Wenjun.R")
+source("SQLShareLib.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
 rawData <- fetchdata(sql)
