@@ -1,4 +1,4 @@
-source("SQLShareLib.R")
+source("SQLShareLib_Wenjun.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
 rawData <- fetchdata(sql)
@@ -56,7 +56,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
        Y <- rep(0, length(yDist))
        for (k in 1:length(yDist)) {
          t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])])
-         t2 <- water[colnames(pfracs[[i]][k])] * countMatrix["WATER", names(yDist[j])] * yDist[k]
+         t2 <- water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
          Y[k] <- as.double(t1) + as.double(t2)
        }
        sigmaY <- log(sum(Y))
@@ -135,7 +135,7 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
       pxy <- 0.
       for(j in 1:length(dist)) {
         t1 <- countMatrix[i,j] * dist[j] * (1 - countMatrix["WATER", j])
-        t2 <- water[j] * countMatrix["WATER", i] * dist[j]
+        t2 <- water[i] * countMatrix["WATER", j] * dist[j]
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sum <- sum + log(pxy) * deltaPs[i]
@@ -158,8 +158,8 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
       for (j in 1:length(dist)) {
         pxy <- 0.
         for (k in 1:length(dist)) {
-          t1 <- countMatrix[i,k] * dist[k] * (1 - countMatrix["WATER", k])
-          t2 <- water[i] * countMatrix["WATER", k] * dist[k]
+          t1 <- countMatrix[i,k] * dist[k] * (1 - countMatrix["WATER", j])
+          t2 <- water[i] * countMatrix["WATER", j] * dist[k]
           pxy <- pxy + as.double(t1) + as.double(t2)
         }
         d1 <- deltaPs[i] / pxy
@@ -170,8 +170,56 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
     }
     return (devI)
   }
-  #print(devI(groDist["GroEL_Close",]))
+#  print(devI(groDist["GroEL_Close",]))
+
+  numDev <- function(dist,delta) {
+    dist <- dist[match(colnames(countMatrix),names(dist))]
+    numDev <- array(0,length(dist))
+    names(numDev) <- names(dist)
+    #print(countMatrix)
+    #print(deltaPs)
+    #print(dist)
+    #print(water)
+    for (i in 1:length(dist)) {
+      sum1 <- 0.
+      sum2 <- 0.
+      for(j in 1:length(deltaPs)) {
+        pxy <- 0.
+        for(k in 1:length(dist)) {
+          if (k == i) {
+            t1 <- countMatrix[j,k] * (dist[k] + delta) * (1 - countMatrix["WATER", k])
+            t2 <- water[k] * countMatrix["WATER", j] * (dist[k] + delta)
+            pxy <- pxy + as.double(t1) + as.double(t2)}
+          else {
+            t1 <- countMatrix[j,k] * dist[k] * (1 - countMatrix["WATER", k])
+            t2 <- water[k] * countMatrix["WATER", j] * dist[k]
+            pxy <- pxy + as.double(t1) + as.double(t2)}
+        }
+      sum1 <- sum1 + log(pxy) * deltaPs[j]
+      }
+
+      for(j in 1:length(deltaPs)) {
+        pxy <- 0.
+        for(k in 1:length(dist)) {
+          if (k == i) {
+            t3 <- countMatrix[j,k] * (dist[k] - delta) * (1 - countMatrix["WATER", k])
+            t4 <- water[k] * countMatrix["WATER", j] * (dist[k] - delta)
+            pxy <- pxy + as.double(t3) + as.double(t4)} 
+          else {
+            t3 <- countMatrix[j,k] * dist[k] * (1 - countMatrix["WATER", k])
+            t4 <- water[k] * countMatrix["WATER", j] * dist[k]
+            pxy <- pxy + as.double(t3) + as.double(t4)}
+        }
+      sum2 <- sum2 + log(pxy) * deltaPs[j]
+      }
+      numDev[i] <- (sum1 - sum2) / (2 * delta)
+    }
+    return(numDev)
+  }
+
+#    print(numDev(groDist["GroEL_Close",], 0.00001))
 }
-energyCycle("ecoli", "wenjunh")
+
+#energyCycle("ecoli", "wenjunh")
 #energyBootstrap(1000, "ecoli", username="wenjunh")
-minimizeEnergy("ecoli", "wenjunh")
+#minimizeEnergy("ecoli", "wenjunh")
