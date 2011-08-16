@@ -1,4 +1,4 @@
-source("SQLShareLib.R")
+source("SQLShareLib_Wenjun.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
 rawData <- fetchdata(sql)
@@ -42,10 +42,9 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
   }
   names(water) <- colnames(countMatrix)
 
-  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
-  
+  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )  
 
-   deltaGOpen <- array(0,1000)
+  deltaGOpen <- array(0,1000)
   deltaGClose <- array(0,1000)
 
   sigmaXln <- array(0,2)
@@ -61,7 +60,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
          Y[k] <- as.double(t1) + as.double(t2)
        }
        sigmaY <- log(sum(Y))
-       X[j] <- mean(pfracs[[i]][,j]) * sigmaY
+       X[j] <- median(pfracs[[i]][,j]) * sigmaY
      }
     sigmaXln[i] <- sum(X)
     sigmaX[i] <- sum(exp(X))
@@ -72,7 +71,6 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
   deltaG[2] <- sigmaX[1]/sigmaX[2]
 
   return (deltaG)
-
 }
 
 energyBootstrap <- function(bootstrap,dataset,username=myUsername,
@@ -127,18 +125,17 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
   names(water) <- colnames(countMatrix)
 
   countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
-  
-  print(water)
-  print(countMatrix)
-  
+
+  deltaPs <- deltaPs[match(colnames(countMatrix),names(deltaPs))]
   
   g <- function(dist) {
+    dist <- dist[match(colnames(countMatrix),names(dist))]
     sum <- 0.
     for(i in 1:length(deltaPs)) {
       pxy <- 0.
       for(j in 1:length(dist)) {
         t1 <- countMatrix[i,j] * dist[j] * (1 - countMatrix["WATER", j])
-        t2 <- water[j] * countMatrix["WATER", j] * dist[j]
+        t2 <- water[i] * countMatrix["WATER", j] * dist[j]
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sum <- sum + log(pxy) * deltaPs[i]
@@ -147,10 +144,11 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
   }
 
   print(g(groDist["GroEL_Close",]))
+  print(g(groDist["GroEL_Open",]))
 
 }
 
 
-energyCycle("ecoli", "wenjunh")
+#energyCycle("ecoli", "wenjunh")
 #energyBootstrap(1000, "ecoli", username="wenjunh")
-minimizeEnergy("ecoli", "wenjunh")
+#minimizeEnergy("ecoli", "wenjunh")
