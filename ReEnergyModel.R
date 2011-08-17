@@ -1,4 +1,4 @@
-source("SQLShareLib_Wenjun.R")
+source("SQLShareLib.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
 rawData <- fetchdata(sql)
@@ -8,7 +8,7 @@ groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row
 groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroEL_Close", ]))
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
 
-energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username)) {
+energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1) {
   countMatrix <- sampleContacts(contacts)
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
@@ -28,25 +28,22 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
   ener <- list(Gclose,Gopen)
   names(ener) <- list("Gclose","Gopen")
 
-  ener[[1]] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs)
-  ener[[2]] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs)
+  ener[[1]] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau)
+  ener[[2]] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau)
 #  print(ener)
 
   return(ener)
 }
 
-freeEnergyModel <- function(countMatrix,yDist,pfracs) {
+freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau) {
 
-  water <- array(0,ncol(countMatrix))
+  hydration <- array(0,ncol(countMatrix))
   for (l in 1:ncol(countMatrix)) {
-    water[l] <- countMatrix["WATER",l] / sum(countMatrix["WATER",])
+    hydration[l] <- countMatrix["WATER",l] / sum(countMatrix[c(1:20,which(rownames(countMatrix) == "WATER")),l]) * (1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]) + countMatrix["FREE",l] / countMatrix["TOTAL",l]
   }
-  names(water) <- colnames(countMatrix)
+  names(hydration) <- colnames(countMatrix)
 
   countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )  
-
-  deltaGOpen <- array(0,1000)
-  deltaGClose <- array(0,1000)
 
   sigmaXln <- array(0,2)
   sigmaX <- array(0,2)
@@ -56,21 +53,16 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs) {
     for (j in 1:ncol(pfracs[[i]])) {
        Y <- rep(0, length(yDist))
        for (k in 1:length(yDist)) {
-         t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - countMatrix["WATER", names(yDist[k])])
-         t2 <- water[colnames(pfracs[[i]][j])] * countMatrix["WATER", names(yDist[k])] * yDist[k]
+         t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - hydration[names(yDist)[k]])
+         t2 <- hydration[colnames(pfracs[[i]][j])] / sum(hydration) * hydration[names(yDist)[k]] * yDist[k]
          Y[k] <- as.double(t1) + as.double(t2)
        }
        sigmaY <- log(sum(Y))
        X[j] <- median(pfracs[[i]][,j]) * sigmaY
      }
     sigmaXln[i] <- sum(X)
-    sigmaX[i] <- sum(exp(X))
   }
-  deltaG <- array(0,2)
-  names(deltaG) <- c("deltaGln","deltaG")
-  deltaG[1] <- sigmaXln[1]-sigmaXln[2]
-  deltaG[2] <- sigmaX[1]/sigmaX[2]
-
+  deltaG = -(sigmaXln[1] * lambdaf - sigmaXln[2] * lambdau)
   return (deltaG)
 }
 
@@ -141,7 +133,7 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
       }
       sum <- sum + log(pxy) * deltaPs[i]
     }
-    return(sum)
+    return(-sum)
   }
 
 #  print(g(groDist["GroEL_Close",]))
@@ -223,6 +215,7 @@ minimizeEnergy <- function(dataset, username=myUsername,  contacts=fetchContacts
 #  print(numDev(groDist["GroEL_Close",], 0.00001))
 }
 
-#energyCycle("ecoli", "wenjunh")
+energyCycle("ecoli", "wenjunh")
+energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
