@@ -30,7 +30,7 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
 
   ener[[1]] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau)
   ener[[2]] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau)
-#  print(ener)
+  print(ener)
 
   return(ener)
 }
@@ -56,7 +56,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau) {
     for (j in 1:ncol(pfracs[[i]])) {
        Y <- rep(0, length(yDist))
        for (k in 1:length(yDist)) {
-         t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * (1 - contact[names(yDist)[k]])
+         t1 <- countMatrix[colnames(pfracs[[i]][j]), names(yDist[k])] * yDist[k] * contact[names(yDist)[k]]
          t2 <- hydration[colnames(pfracs[[i]][j])] / sum(hydration) * hydration[names(yDist)[k]] * yDist[k]
          Y[k] <- as.double(t1) + as.double(t2)
        }
@@ -133,13 +133,13 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
     for(i in 1:length(deltaPs)) {
       pxy <- 0.
       for(j in 1:length(dist)) {
-        t1 <- countMatrix[i,j] * dist[j] * (1 - contact[j])
+        t1 <- countMatrix[i,j] * dist[j] * contact[j]
         t2 <- hydration[i] / sum(hydration) * hydration[j] * dist[j]
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sum <- sum + log(pxy) * deltaPs[i]
     }
-    return(-sum)
+    return(sum)
   }
 
 #  print(g(groDist["GroEL_Close",]))
@@ -158,12 +158,12 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
       for (j in 1:length(deltaPs)) {
         pxy <- 0.
         for (k in 1:length(dist)) {
-          t1 <- countMatrix[j,k] * dist[k] * (1 - contact[k])
+          t1 <- countMatrix[j,k] * dist[k] * contact[k]
           t2 <- hydration[j] / sum(hydration) * hydration[k] * dist[k]
           pxy <- pxy + as.double(t1) + as.double(t2)
         }
         d1 <- deltaPs[j] / pxy
-        d2 <- countMatrix[j,i] * (1 - contact[i])
+        d2 <- countMatrix[j,i] * contact[i]
         d3 <- hydration[j] * hydration[i] / sum(hydration)
         sum <- sum + d1 * (d2 + d3)
       }
@@ -171,6 +171,16 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
     }
     return (devI)
   }
+
+  ini <- c(0.1,0.05,0.01,0.01,0,0,0.2,0.11,0.01,0.01,0.02,0.1,0,0.03,0.04,0.07,0.06,0,0.042,0.016)
+  names(ini) <- names(groDist["GroEL_Close",])
+  
+  opt <- optim(ini, g, devI, method = "CG", control = list(trace = T, fnscale = -1))
+  print(opt[1])
+  print(opt[2])
+  print(opt[3])
+  print(groDist["GroEL_Close",])
+
 #  print(devI(groDist["GroEL_Close",]))
 
   numDev <- function(dist,delta) {
@@ -188,11 +198,11 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
         pxy <- 0.
         for(k in 1:length(dist)) {
           if (k == i) {
-            t1 <- countMatrix[j,k] * (dist[k] + delta) * (1 - contact[k])
+            t1 <- countMatrix[j,k] * (dist[k] + delta) * contact[k]
             t2 <- hydration[j] / sum(hydration) * hydration[k] * (dist[k] + delta)
             pxy <- pxy + as.double(t1) + as.double(t2)}
           else {
-            t1 <- countMatrix[j,k] * (dist[k]) * (1 - contact[k])
+            t1 <- countMatrix[j,k] * (dist[k]) * contact[k]
             t2 <- hydration[j] / sum(hydration) * hydration[k] * (dist[k])
             pxy <- pxy + as.double(t1) + as.double(t2)}
         }
@@ -203,11 +213,11 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
         pxy <- 0.
         for(k in 1:length(dist)) {
           if (k == i) {
-            t1 <- countMatrix[j,k] * (dist[k] - delta) * (1 - contact[k])
+            t1 <- countMatrix[j,k] * (dist[k] - delta) * contact[k]
             t2 <- hydration[j] / sum(hydration) * hydration[k] * (dist[k] - delta)
             pxy <- pxy + as.double(t1) + as.double(t2)}
           else {
-            t1 <- countMatrix[j,k] * (dist[k]) * (1 - contact[k])
+            t1 <- countMatrix[j,k] * (dist[k]) * contact[k]
             t2 <- hydration[j] / sum(hydration) * hydration[k] * (dist[k])
             pxy <- pxy + as.double(t1) + as.double(t2)}
         }
@@ -224,4 +234,4 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
 #energyCycle("ecoli", "wenjunh")
 #energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
-#minimizeEnergy("ecoli", "wenjunh")
+minimizeEnergy("ecoli", "wenjunh")
