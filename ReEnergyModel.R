@@ -1,3 +1,4 @@
+library(alabama)
 source("SQLShareLib_Wenjun.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
@@ -7,6 +8,8 @@ groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row
 
 groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroEL_Close", ]))
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
+
+
 
 energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1) {
   countMatrix <- sampleContacts(contacts)
@@ -137,9 +140,12 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
         t2 <- hydration[i] / sum(hydration) * hydration[j] * dist[j]
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
+      if (pxy < 0) {
+        pxy <- 1E-199
+      }
       sum <- sum + log(pxy) * deltaPs[i]
     }
-    return(sum)
+    return(-sum)
   }
 
 #  print(g(groDist["GroEL_Close",]))
@@ -172,16 +178,69 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
     return (devI)
   }
 
-  ini <- c(0.1,0.05,0.01,0.01,0,0,0.2,0.11,0.01,0.01,0.02,0.1,0,0.03,0.04,0.07,0.06,0,0.042,0.016)
+  constrEq <- function(dist) {    
+    sum <- sum(dist) - 1
+    return (sum)
+  }
+
+  constrEq.jac <- function(dist) {
+    j <- matrix(0, 1 ,length(dist))
+    j[1, ] <- array(1, 20)
+  }
+
+#  constrIeq <- function(dist) {
+#    sum <- sum(dist[which(dist < 0)])
+#    return (sum)
+#  }
+
+  constrIeq <- function(dist) {
+    h <- rep(NA,1)
+    listSp <- c(5,6,18)
+    for (i in 1:length(dist)) {
+      if (i == listSp[i == listSp]) {
+        h[i] <- 0.005 - dist[i]
+      } else {
+        h[i] <- dist[i]}
+    }
+    print(h)
+    return (h)
+  }
+
+  constrIeq.jac <- function(dist) {
+    j <- matrix(0, length(dist), length(dist))
+    for (i in 1:length(dist)) {
+      j[i,i] <- 1
+    }
+    return (j)
+  }
+
+  ini <- c(0.1, 0.05, 0.01, 0.15, 0.001, 0.001, 0.15, 0.15, 0.01, 0.01, 0.02, 0.15, 0, 0.03, 0.04, 0.07, 0.06, 0.001, 0.04, 0.02)
+#  ini <- array(0.05,20)
+#  ini <- as.numeric(groDist["GroEL_Close",])
   names(ini) <- names(groDist["GroEL_Close",])
   
-  opt <- optim(ini, g, devI, method = "CG", control = list(trace = T, fnscale = -1))
-  print(opt[1])
-  print(opt[2])
-  print(opt[3])
+#  opt <- optim(ini, g, devI, method = "L-BFGS-B", lower = array(0,20), upper = array(0.5,20), control = list(trace = T))
+  optimiz <- function(ini, iter)
+    for (i in 1:iter) {
+      if (i == 1) {
+        ini <- ini
+      } else {
+        ini <- opt$par
+      }
+    optMin <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, sig0 = 1E-2, method = "BFGS"), control.optim = list(fnscale = 1))
+#    print(opt[1])
+    print(optMin)
+    optMax <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, sig0 = 1E-2, method = "BFGS"), control.optim = list(fnscale = -1))
+    print(optMax)
+    }
+#  print(opt[1])
+#  print(opt[2])
+#  print(opt[3])
+  optimiz(ini, 1)
   print(groDist["GroEL_Close",])
+  print(g(groDist["GroEL_Close",]))
 
-#  print(devI(groDist["GroEL_Close",]))
+#  print(devI(groDist["GroEL_Open",]))
 
   numDev <- function(dist,delta) {
     dist <- dist[match(colnames(countMatrix),names(dist))]
@@ -228,7 +287,7 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
     return(numDev)
   }
 
-#  print(numDev(groDist["GroEL_Close",], 0.00001))
+#  print(numDev(groDist["GroEL_Open",], 0.0001))
 }
 
 #energyCycle("ecoli", "wenjunh")
