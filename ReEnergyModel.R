@@ -11,31 +11,96 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 
-energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1) {
+energyCycle <- function(username, dataset1="ecoli",dataset2="assist", contacts=fetchContacts(paste(dataset1, "_surface_contacts.csv",sep=""))) {
   countMatrix <- sampleContacts(contacts)
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
+  pidsecoli <- fetchPDBIDs(dataset1, username)
+  pidsassist <- fetchPDBIDs(dataset2, username)
+  cat("Fetching Data...")
+  
   cutoff <- 0.3
-  pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-  pidsfold <- fetchPDBIDs(dataset, username)
-
+  csurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  csurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
+  
   cutoff <- -1.0
-  pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-  pidsunfold <- fetchPDBIDs(dataset, username)
+  cunfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  cunfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
+  
+  cburied <- cunfold - csurf
+  cburiedassist <- cunfoldassist - csurfassist
+  cat(" Done!\n")
+  
+  counts <- list(csurf, cburied, cunfold)
+  names(counts) <- c("csurf","cburied","cunfold")
+  for (i in 1:3) {
+    counts[[i]] <- counts[[i]][match(colnames(countMatrix),names(counts[[i]]))]
+  }
 
+  countsassist <- list(csurfassist, cburiedassist, cunfoldassist)
+  names(countsassist) <- c("csurfassist","cburiedassist","cunfoldassist")
+  for (i in 1:3) {
+    countsassist[[i]] <- countsassist[[i]][match(colnames(countMatrix),names(countsassist[[i]]))]
+  }
+  
+  pfracs <- counts
+  names(pfracs) <- c("psurf","pburied","punfold")
+  for (i in 1:3) {
+    for (j in 1:nrow(pfracs[[i]])) {
+      pfracs[[i]][j,] <- pfracs[[i]][j,] / sum(pfracs[[i]][j,])
+    }
+  }
 
-  pfracs <- list(pfracsfold, pfracsunfold)
+  pfracsassist <- countsassist
+  names(pfracsassist) <- c("psurfassist","pburiedassist","punfoldassist")
+  for (i in 1:3) {
+    for (j in 1:nrow(pfracsassist[[i]])) {
+      pfracsassist[[i]][j,] <- pfracsassist[[i]][j,] / sum(pfracsassist[[i]][j,])
+    }
+  }
+  
+#  problemlist <- c("1AZO","1B9M")
+  ddGecoli <- matrix(0,length(pidsecoli),2)
+  rownames(ddGecoli) <- pidsecoli
+  colnames(ddGecoli) <- c("DDG","length")
+  cat("Processing DataSet1...")
 
-  Gclose <- c(0,0)
-  Gopen <- c(0,0)
-  ener <- list(Gclose,Gopen)
-  names(ener) <- list("Gclose","Gopen")
+  for(i in 1:length(pidsecoli)) {
+    if(pidsecoli[i] %in% pidsassist) {
+      ddGecoli[i,1] <- 0
+      cat(paste("\rSkipping...","         ", i,"/",length(pidsecoli)))
+    }
+    else {
+      ener <- c(0,0)
+      ener[1] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts)
+ #     ener[2] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts)
+      ddGecoli[i,1] <- -ener[1]# - ener[2]
+      cat(paste("\rProcessing DataSet1...", i,"/",length(pidsecoli)))
+    }
+    ddGecoli[i,2] <- sum(counts$cunfold[pidsecoli[i],])
+  }
+  cat(" \n")
+  ddGecoli <- ddGecoli[-which(ddGecoli[,1] == 0),]
 
-  ener[[1]] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau)
-  ener[[2]] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau)
-  print(ener)
+  ddGassist <- matrix(0,length(pidsassist),2)
+  rownames(ddGassist) <- pidsassist
+  colnames(ddGassist) <- c("DDG","length")
+  cat("Processing DataSet2...")
 
-  return(ener)
+  for(i in 1:length(pidsassist)) {
+    ener <- c(0,0)
+    ener[1] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist)
+ #   ener[2] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist)
+    ddGassist[i,1] <- -ener[1]# - ener[2]
+    cat(paste("\rProcessing DataSet2...", i,"/",length(pidsassist)))
+    ddGassist[i,2] <- sum(countsassist$cunfoldassist[pidsassist[i],])
+  }
+  cat(" \n")
+  cat("Completed! \n")
+  ddG <- list(ddGecoli, ddGassist)
+  names(ddG) <- c("ecoli","assist")
+
+  return(ddG)
 }
 
 freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau) {
@@ -71,6 +136,54 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau) {
   deltaG = -(sigmaXln[1] * lambdaf - sigmaXln[2] * lambdau)
   return (deltaG)
 }
+
+newFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts) {
+  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
+  yDist <- yDist[match(colnames(countMatrix),names(yDist))]
+  
+  ener <- c(0,0)
+  names(ener) <- list("Gfold","Gunfold")
+  sigmaXln <- array(0,2)
+  sigmaX <- array(0,2)
+
+  sum <- 0.
+  for (i in 1:ncol(counts$csurf)) {
+    pxy <- 0.
+    for (j in 1:length(yDist)) {
+      pxy <- pxy + countMatrix[i,j] * yDist[j]
+    }
+    sigmaY <- log(pxy)
+    sum <- sum + as.double(counts$csurf[PDBID,i] * sigmaY)
+  }
+  Xsurf <- sum
+
+  sum <- 0.
+  for (i in 1:ncol(counts$cburied)) {
+    pxy <- 0.
+    for (j in 1:length(pfracs$pburied)) {
+      pxy <- pxy + countMatrix[i,j] * pfracs$pburied[PDBID,j]
+    }
+    sigmaY <- log(pxy)
+    sum <- sum + as.double(counts$cburied[PDBID,i] * sigmaY)
+  }
+  Xburied <- sum
+  ener[1] <- Xsurf + Xburied
+
+  sum <- 0.
+  for (i in 1:ncol(counts$cunfold)) {
+    pxy <- 0.
+    for (j in 1:length(pfracs$punfold)) {
+      pxy <- pxy + countMatrix[i,j] * pfracs$punfold[PDBID,j]
+    }
+    sigmaY <- log(pxy)
+    sum <- sum + as.double(counts$cunfold[PDBID,i] * sigmaY)
+  }
+  Xunfold <- sum
+  ener[2] <- Xunfold
+
+  return(ener[1] - ener[2])
+}
+  
 
 energyBootstrap <- function(bootstrap,dataset,username=myUsername,
                             contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
@@ -196,16 +309,16 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
   constrIeq <- function(dist) {
     h <- rep(NA,1)
     listSp <- c(5,6,18)
-    for (i in 1:length(dist)) {
-      if (i == listSp[i == listSp]) {
-        h[i] <- 0.005 - dist[i]
-      } else {
-        h[i] <- dist[i]}
-    }
-    print(h)
+    list <- c(1,2,3,4,7,8,9,10,11,12,13,14,15,16,17,19,20)
+    for (j in list) {
+        h[j] <- dist[j]
+      }
+    for (i in listSp) {
+        h[i] <- 0.002 - dist[i]
+      }
     return (h)
   }
-
+  
   constrIeq.jac <- function(dist) {
     j <- matrix(0, length(dist), length(dist))
     for (i in 1:length(dist)) {
@@ -215,7 +328,9 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
   }
 
   ini <- c(0.1, 0.05, 0.01, 0.15, 0.001, 0.001, 0.15, 0.15, 0.01, 0.01, 0.02, 0.15, 0, 0.03, 0.04, 0.07, 0.06, 0.001, 0.04, 0.02)
-#  ini <- array(0.05,20)
+#  ini <- runif(20,0,0.05)
+#  ini[c(5,6,18)] <- 0.001
+#  ini <- array(0.1,20)
 #  ini <- as.numeric(groDist["GroEL_Close",])
   names(ini) <- names(groDist["GroEL_Close",])
   
@@ -227,11 +342,11 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
       } else {
         ini <- opt$par
       }
-    optMin <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, sig0 = 1E-2, method = "BFGS"), control.optim = list(fnscale = 1))
+    optMin <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, mu0 = 1E-2, method = "BFGS"), control.optim = list(fnscale = 1))
 #    print(opt[1])
     print(optMin)
-    optMax <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, sig0 = 1E-2, method = "BFGS"), control.optim = list(fnscale = -1))
-    print(optMax)
+#    optMax <- auglag(par = ini, fn = g, gr = devI, hin = constrIeq, hin.jac = constrIeq.jac, heq = constrEq, heq.jac = constrEq.jac, control.outer = list(trace = T, eqs = 1E-100, method = "BFGS"), control.optim = list(fnscale = -1))
+#    print(optMax)
     }
 #  print(opt[1])
 #  print(opt[2])
@@ -290,7 +405,7 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
 #  print(numDev(groDist["GroEL_Open",], 0.0001))
 }
 
-#energyCycle("ecoli", "wenjunh")
+ddG <- energyCycle(username="wenjunh")
 #energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
-minimizeEnergy("ecoli", "wenjunh")
+#minimizeEnergy("ecoli", "wenjunh")
