@@ -1,4 +1,5 @@
 library(alabama)
+library(KernSmooth)
 source("SQLShareLib_Wenjun.R")
 
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
@@ -59,7 +60,11 @@ energyCycle <- function(username, dataset1="ecoli",dataset2="assist", contacts=f
     }
   }
   
-#  problemlist <- c("1AZO","1B9M")
+#  pidsecoli <- c("1AF6","1AZO", "1BYI", "1D9E", "1EUW", "1FL2", "1I78", "1JW9", "1K6D", "1K6W","1K92", "1KMJ", "1KQF", "1LV7", "1M40", "1NI5", "1NUL", "1OTS", "1PW4", "1Q16","1Q7E", "1QD5", "1QJP", "1RC6", "1SCZ", "1T16", "1TLY", "1U5W", "1U7G", "1UJC","1UWF", "1VI3", "1WXI", "1YOE", "1YW6", "2ATE", "2AU7", "2B82", "2BZ1", "2CFQ","2D4U", "2E85", "2F1V", "2GFP", "2GRX", "2GUF", "2HDI", "2J1N", "2JF2", "2PAN","2PGX", "2QI9", "2QOM", "2VGD", "2VQI", "2VV5", "2VWS", "2WCD", "2WJ9", "2WJR","2X9K", "2XE3", "2XOV", "2Z98", "2ZCU", "2ZFG", "2ZHH", "3AEH", "3BBY", "3FV5","3GEA", "3GP6", "3H90", "3HFX", "3HO9", "3I87", "3IIQ", "3IP0", "3JQO", "3KCU","3L1L", "3LGI", "3NKA", "3O7Q", "3OHN", "3PIK", "3QE7", "3RFZ")
+#  pidsecoli <- c("1AB4", "1AT1", "1B5T", "1BDF", "1BS0", "1DC3", "1DKG", "1E9I", "1EVL", "1GG1","1MXB", "1XEY", "2C4N", "2EHJ", "2GQR", "3LTI", "3PCO", "3Q9L")
+#  pidsecoli <- c("1BDF","1DKG", "1EVL", "1XEY", "2C4N", "2EHJ", "2GQR", "3LTI", "3PCO", "3Q9L")
+#  pidsecoli <- c("2PAN","2WCD")
+  
   ddGecoli <- matrix(0,length(pidsecoli),2)
   rownames(ddGecoli) <- pidsecoli
   colnames(ddGecoli) <- c("DDG","length")
@@ -140,6 +145,8 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau) {
 newFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts) {
   countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
   yDist <- yDist[match(colnames(countMatrix),names(yDist))]
+#  print(yDist)
+#  print(paste(pfracs$psurf[PDBID,],pfracs$pburied[PDBID,],pfracs$punfold[PDBID,]))
   
   ener <- c(0,0)
   names(ener) <- list("Gfold","Gunfold")
@@ -150,12 +157,13 @@ newFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts) {
   for (i in 1:ncol(counts$csurf)) {
     pxy <- 0.
     for (j in 1:length(yDist)) {
-      pxy <- pxy + countMatrix[i,j] * yDist[j]
+      pxy <- pxy + countMatrix[i,j] * yDist[j]#pfracs$psurf[PDBID,j]#yDist[j]
     }
     sigmaY <- log(pxy)
     sum <- sum + as.double(counts$csurf[PDBID,i] * sigmaY)
   }
   Xsurf <- sum
+#  print(Xsurf)
 
   sum <- 0.
   for (i in 1:ncol(counts$cburied)) {
@@ -167,6 +175,7 @@ newFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts) {
     sum <- sum + as.double(counts$cburied[PDBID,i] * sigmaY)
   }
   Xburied <- sum
+#  print(Xburied)
   ener[1] <- Xsurf + Xburied
 
   sum <- 0.
@@ -179,6 +188,7 @@ newFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts) {
     sum <- sum + as.double(counts$cunfold[PDBID,i] * sigmaY)
   }
   Xunfold <- sum
+#  print(Xunfold)
   ener[2] <- Xunfold
 
   return(ener[1] - ener[2])
@@ -405,7 +415,119 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
 #  print(numDev(groDist["GroEL_Open",], 0.0001))
 }
 
-ddG <- energyCycle(username="wenjunh")
+normalPlot <- function(ddG,name) {
+  x <- c(ddG$ecoli[,1],ddG$assist[,1])
+  y <- c(ddG$ecoli[,2],ddG$assist[,2])
+  col <- rep("red",nrow(ddG$ecoli))
+  col <- c(col,rep("blue",nrow(ddG$assist)))
+  cairo_pdf(paste(name,".pdf",sep=""), width=7, height=5)
+  par(family="LMRoman10")
+  plot(x,y,type="p",col=col,xlab="ddG",ylab="length",xlim=c(quantile(x[which(y<1000)],probs=c(0.05,0.95))["5%"],quantile(x[which(y<1000)],probs=c(0.05,0.95))["95%"]),ylim=c(0,1000))
+  dev.off()
+}
+
+plotPS <- function(x, y,xpoints=NULL,ypoints=NULL, xlab, ylab,  plotName) {
+
+#  xlim <- c(quantile(x[which(y<1000)],probs=c(0.025,0.975))[1],quantile(x[which(y<1000)],probs=c(0.025,0.975))[2])
+#  ylim <- c(0,1000)
+  xlim <- c(-1.6,-0.6)
+  ylim <- c(0,8000)
+
+  mest <- bkde2D(x=cbind(x,y), bandwidth=c(2,50), gridsize=c(1000,1000), range.x=list(xlim, ylim))
+  print(paste(mest$x1[floor(which.max(mest$fhat) %% length(mest$x1))], mest$x2[floor(which.max(mest$fhat) / length(mest$x2))]))
+  nlevels <- 30
+
+  colGrad <- colorRampPalette(c(
+  rgb(0.0, 0.000, 0.0),
+  rgb(0.142, 0.000, 0.850),
+  rgb(0.097, 0.112, 0.970),
+  rgb(0.160, 0.342, 1.000),
+  rgb(0.240, 0.531, 1.000),
+  rgb(0.340, 0.692, 1.000),
+  rgb(0.460, 0.829, 1.000),
+  rgb(0.600, 0.920, 1.000),
+  rgb(0.740, 0.978, 1.000),
+  rgb(0.920, 1.000, 1.000),
+  rgb(1.000, 1.000, 0.920),
+  rgb(1.000, 0.948, 0.740),
+  rgb(1.000, 0.840, 0.600),
+  rgb(1.000, 0.676, 0.460),
+  rgb(1.000, 0.472, 0.340),
+  rgb(1.000, 0.240, 0.240),
+  rgb(0.970, 0.155, 0.210),
+  rgb(0.850, 0.085, 0.187),
+  rgb(0.650, 0.000, 0.130)));
+
+  colors <- colGrad(nlevels * 10)
+  
+  png(paste(plotName, ".png", sep=""), width=1750, height=1750, res=250)
+  par(family="LMRoman10", fg="dark gray")
+  #plot(phi, psi, xlim=xlim, ylim=ylim, xlab=expression(Phi), ylab=expression(Psi))
+  image(mest$x1, mest$x2, mest$fhat, col=colors, bg="black", xlim=xlim, ylim=ylim, xlab=xlab, ylab=ylab)
+  points(x=xpoints,y=ypoints,type="p",col="green", pch=19)
+  #contour(mest$x1, mest$x2, mest$fhat, nlevels=nlevels / 10, add=T, drawlabels=F, col="white", text.col="black", xaxs="i", yaxs="i", lwd=1.25, xlim=xlim, ylim=ylim)
+  #contour(mest$x1, mest$x2, mest$fhat, nlevels=nlevels, add=T, drawlabels=F, col="dark gray", text.col="black", xaxs="i", yaxs="i", lwd=0.5, xlim=xlim, ylim=ylim)
+  abline(v=0, col="light gray", lwd=1.25)
+  abline(h=0, col="light gray", lwd=1.25)
+  graphics.off()
+
+}
+
+ellipsoidPlot <- function(ddG,name) {
+  x <- c(ddG$ecoli[,1],ddG$assist[,1])
+  y <- c(ddG$ecoli[,2],ddG$assist[,2])
+  col <- rep("red",nrow(ddG$ecoli))
+  col <- c(col,rep("blue",nrow(ddG$assist)))
+
+  r1 <- (quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),1],prob=c(0.025,0.5,0.975))[3] - quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),1],prob=c(0.025,0.5,0.975))[1]) / 2
+  r2 <- (quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),2],prob=c(0.025,0.5,0.975))[3] - quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),2],prob=c(0.025,0.5,0.975))[1]) / 2
+  m1 <- (quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),1],prob=c(0.025,0.5,0.975))[3] + quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),1],prob=c(0.025,0.5,0.975))[1]) / 2
+  m2 <- (quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),2],prob=c(0.025,0.5,0.975))[3] + quantile(ddG$ecoli[which(ddG$ecoli[,2]<1000),2],prob=c(0.025,0.5,0.975))[1]) / 2
+
+  a <- seq(-21.7,7.7,0.01)
+  b1 <- sqrt((1 - (((a-m1)**2) / (r1**2))) * (r2**2)) + m2
+  b2 <- -sqrt((1 - (((a-m1)**2) / (r1**2))) * (r2**2)) + m2
+
+  a <- c(a,a)
+  b <- c(b1,b2)
+  cairo_pdf(paste(name,".pdf",sep=""), width=7, height=5)
+  par(family="LMRoman10")
+  plot(x,y,type="p",col=col,xlab="ddG",ylab="length",xlim=c(quantile(x[which(y<1000)],probs=c(0.025,0.975))[1],quantile(x[which(y<1000)],probs=c(0.025,0.975))[2]),ylim=c(0,1000))
+  points(x=a,y=b,type="p",col="green")
+  dev.off()
+}
+
+testStuff <- function(username, dataset="ecoli") {
+  pidsecoli <- fetchPDBIDs(dataset, username)
+  cat("Fetching Data...")
+  
+  cutoff <- -1.0
+  cunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+
+  data <- matrix(0,nrow(cunfold),2)
+  rownames(data) <- rownames(cunfold)
+  colnames(data) <- c("phobicity","length")
+
+  cat(" Done!\n")
+  cat("Processing...")
+  
+  for (i in 1:nrow(cunfold)) {
+    pho <- sum(cunfold[i,c("MET","ALA","VAL","LEU","ILE","PRO")]) / sum(cunfold[i,])
+    data[i,1] <- log(pho)
+    data[i,2] <- sum(cunfold[i,])
+  }
+  cat(" \n")
+  return(data)
+}
+  
+
+#ddG <- energyCycle(username="wenjunh")
+#normalPlot(ddG,"ddGquan")
+#plotPS(x=ddG$ecoli[,1],y=ddG$ecoli[,2],xpoints=ddG$assist[,1],ypoints=ddG$assist[,2], xlab="ddG",ylab="length",plotName="trial")
+#ellipsoidPlot(ddG,"ellipsoid")
+plotPS(x=data[,1],y=data[,2], xlab="phobicity",ylab="length",plotName="trial")
+#data <- testStuff("wenjunh")
+
 #energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
