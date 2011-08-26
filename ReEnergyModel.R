@@ -77,8 +77,8 @@ energyCycle <- function(username, dataset1="ecoli",dataset2="assist", contacts=f
     }
     else {
       ener <- c(0,0)
-      ener[1] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts)
- #     ener[2] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts)
+ #     ener[1] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts)
+      ener[1] <- newFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts)
       ddGecoli[i,1] <- -ener[1]# - ener[2]
       cat(paste("\rProcessing DataSet1...", i,"/",length(pidsecoli)))
     }
@@ -94,8 +94,8 @@ energyCycle <- function(username, dataset1="ecoli",dataset2="assist", contacts=f
 
   for(i in 1:length(pidsassist)) {
     ener <- c(0,0)
-    ener[1] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist)
- #   ener[2] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist)
+#    ener[1] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist)
+    ener[1] <- newFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist)
     ddGassist[i,1] <- -ener[1]# - ener[2]
     cat(paste("\rProcessing DataSet2...", i,"/",length(pidsassist)))
     ddGassist[i,2] <- sum(countsassist$cunfoldassist[pidsassist[i],])
@@ -426,14 +426,16 @@ normalPlot <- function(ddG,name) {
   dev.off()
 }
 
-plotPS <- function(x, y,xpoints=NULL,ypoints=NULL, xlab, ylab,  plotName) {
+plotPS <- function(x, y,xpoints=NULL,ypoints=NULL, xlab, ylab,  plotName1, plotName2) {
 
 #  xlim <- c(quantile(x[which(y<1000)],probs=c(0.025,0.975))[1],quantile(x[which(y<1000)],probs=c(0.025,0.975))[2])
 #  ylim <- c(0,1000)
-  xlim <- c(-1.6,-0.6)
-  ylim <- c(0,8000)
+  xlim <- c(quantile(x,probs=c(0.025,0.975))[1],quantile(x,probs=c(0.025,0.975))[2])
+  ylim <- c(quantile(y,probs=c(0.025,0.975))[1],quantile(y,probs=c(0.025,0.975))[2])
+#  xlim <- c(-100,0)
+#  ylim <- c(0,8000)
 
-  mest <- bkde2D(x=cbind(x,y), bandwidth=c(2,50), gridsize=c(1000,1000), range.x=list(xlim, ylim))
+  mest <- bkde2D(x=cbind(x,y), bandwidth=c(5,0.05), gridsize=c(1000,1000), range.x=list(xlim, ylim))
   print(paste(mest$x1[floor(which.max(mest$fhat) %% length(mest$x1))], mest$x2[floor(which.max(mest$fhat) / length(mest$x2))]))
   nlevels <- 30
 
@@ -460,15 +462,20 @@ plotPS <- function(x, y,xpoints=NULL,ypoints=NULL, xlab, ylab,  plotName) {
 
   colors <- colGrad(nlevels * 10)
   
-  png(paste(plotName, ".png", sep=""), width=1750, height=1750, res=250)
+  png(paste(plotName1, ".png", sep=""), width=1750, height=1750, res=250)
   par(family="LMRoman10", fg="dark gray")
-  #plot(phi, psi, xlim=xlim, ylim=ylim, xlab=expression(Phi), ylab=expression(Psi))
   image(mest$x1, mest$x2, mest$fhat, col=colors, bg="black", xlim=xlim, ylim=ylim, xlab=xlab, ylab=ylab)
   points(x=xpoints,y=ypoints,type="p",col="green", pch=19)
-  #contour(mest$x1, mest$x2, mest$fhat, nlevels=nlevels / 10, add=T, drawlabels=F, col="white", text.col="black", xaxs="i", yaxs="i", lwd=1.25, xlim=xlim, ylim=ylim)
-  #contour(mest$x1, mest$x2, mest$fhat, nlevels=nlevels, add=T, drawlabels=F, col="dark gray", text.col="black", xaxs="i", yaxs="i", lwd=0.5, xlim=xlim, ylim=ylim)
-  abline(v=0, col="light gray", lwd=1.25)
-  abline(h=0, col="light gray", lwd=1.25)
+  graphics.off()
+
+  png(paste(plotName2,".png",sep=""),width=1750, height=1750, res=250)
+  par(family="LMRoman10", fg="dark gray")
+  plot(density(x), xlab=xlab, col="red", type="l", lwd=4, main="Density Plot", xlim=c(-60,20),ylim=c(0,0.04))
+#  points(x=density(xpoints),type="l",lwd=4,col="green") 
+  for (i in 1:length(xpoints)) {
+    abline(v = xpoints[i])
+  }
+  legend("topleft", col=c("red", "green"), legend=c("E.Coli Density", "Assisted Points"), pch=15)
   graphics.off()
 
 }
@@ -497,37 +504,123 @@ ellipsoidPlot <- function(ddG,name) {
   dev.off()
 }
 
-testStuff <- function(username, dataset="ecoli") {
-  pidsecoli <- fetchPDBIDs(dataset, username)
+normPlot <- function(data1, data2, plotName) {
+  png(paste(plotName, ".png", sep=""), width=1750, height=1750, res=250)
+  par(family="LMRoman10", fg="dark gray")
+  plot(x=seq(min(data1[,1]),max(data1[,1]),0.01),y=dnorm(seq(min(data1[,1]),max(data1[,1]),0.01), mean(data1[,1]), sqrt(var(data1[,1]))),type="l", lwd=4, col="red", xlab="Hydrophobicity",ylab="Density", ylim=c(0,0.04),xlim=c(-50,50))
+  points(x=seq(min(data1[,1]),max(data1[,1]),0.01),y=dnorm(seq(min(data1[,1]),max(data1[,1]),0.01), mean(data2 [,1]), sqrt(var(data2[,1]))), type="l", lwd=4, col="green")
+  legend("topleft", col=c("red", "green"), legend=c("E.Coli Distribution", "Assisted Distribution"), pch=15)
+  graphics.off()
+}
+
+phobicity <- function(username, dataset1="ecoli", dataset2="assist") {
+  pidsecoli <- fetchPDBIDs(dataset1, username)
   cat("Fetching Data...")
   
   cutoff <- -1.0
-  cunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+  cunfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  cunfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
 
-  data <- matrix(0,nrow(cunfold),2)
-  rownames(data) <- rownames(cunfold)
-  colnames(data) <- c("phobicity","length")
+  pho1 <- matrix(0,nrow(cunfold),2)
+  rownames(pho1) <- rownames(cunfold)
+  colnames(pho1) <- c("phobicity","length")
+
+  pho2 <- matrix(0,nrow(cunfoldassist),2)
+  rownames(pho2) <- rownames(cunfoldassist)
+  colnames(pho2) <- c("phobicity","length")
 
   cat(" Done!\n")
   cat("Processing...")
   
   for (i in 1:nrow(cunfold)) {
-    pho <- sum(cunfold[i,c("MET","ALA","VAL","LEU","ILE","PRO")]) / sum(cunfold[i,])
-    data[i,1] <- log(pho)
-    data[i,2] <- sum(cunfold[i,])
+    if(rownames(cunfold)[i] %in% rownames(cunfoldassist)) {
+      pho1[i,1] <- 0
+      cat(paste("\rSkipping...","         ", i,"/",nrow(cunfold)))
+    }
+    else {
+      cat(paste("\rProcessing DataSet1...", i,"/",nrow(cunfold)))
+      foo <- sum(cunfold[i,c("MET","ALA","VAL","LEU","ILE","PRO")]) / sum(cunfold[i,])
+      pho1[i,1] <- log(foo)
+      pho1[i,2] <- sum(cunfold[i,])
+    }
   }
   cat(" \n")
+  pho1 <- pho1[-which(pho1[,1] == 0),]
+
+  cat("Processing DataSet2...")
+  for (i in 1:nrow(cunfoldassist)) {
+    cat(paste("\rProcessing DataSet2...", i,"/",nrow(cunfoldassist)))
+    foo <- sum(cunfoldassist[i,c("MET","ALA","VAL","LEU","ILE","PRO")]) / sum(cunfoldassist[i,])
+    pho2[i,1] <- log(foo)
+    pho2[i,2] <- sum(cunfoldassist[i,])
+  }
+  cat(" \n")
+  cat("Completed!\n")
+
+  data <- list(pho1,pho2)
+  names(data) <- c("ecoli","assist")
+  
   return(data)
 }
+
+netCharge <- function(username, dataset1="ecoli", dataset2="assist") {
+  pidsecoli <- fetchPDBIDs(dataset1, username)
+  cat("Fetching Data...")
   
+  cutoff <- -1.0
+  cunfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  cunfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
 
-#ddG <- energyCycle(username="wenjunh")
+  cha1 <- matrix(0,nrow(cunfold),2)
+  rownames(cha1) <- rownames(cunfold)
+  colnames(cha1) <- c("netcharge","length")
+
+  cha2 <- matrix(0,nrow(cunfoldassist),2)
+  rownames(cha2) <- rownames(cunfoldassist)
+  colnames(cha2) <- c("netcharge","length")
+
+  cat(" Done!\n")
+  cat("Processing...")
+  
+  for (i in 1:nrow(cunfold)) {
+    if(rownames(cunfold)[i] %in% rownames(cunfoldassist)) {
+      cha1[i,1] <- 999
+      cat(paste("\rSkipping...","         ", i,"/",nrow(cunfold)))
+    }
+    else {
+      cat(paste("\rProcessing DataSet1...", i,"/",nrow(cunfold)))
+      cha1[i,1] <- sum(cunfold[i,c("LYS","ARG")]) - sum(cunfold[i, c("ASP","GLU")])
+      cha1[i,2] <- sum(cunfold[i,])
+    }
+  }
+  cat(" \n")
+  cha1 <- cha1[-which(cha1[,1] == 999),]
+
+  cat("Processing DataSet2...")
+  for (i in 1:nrow(cunfoldassist)) {
+    cat(paste("\rProcessing DataSet2...", i,"/",nrow(cunfoldassist)))
+    cha2[i,1] <- sum(cunfoldassist[i,c("LYS","ARG")]) - sum(cunfoldassist[i, c("ASP","GLU")])
+    cha2[i,2] <- sum(cunfoldassist[i,])
+  }
+  cat(" \n")
+  cat("Completed!\n")
+
+  surfCharge <- list(cha1,cha2)
+  names(surfCharge) <- c("ecoli","assist")
+  
+  return(surfCharge)
+}
+
+ddG2 <- energyCycle(username="wenjunh")
 #normalPlot(ddG,"ddGquan")
-#plotPS(x=ddG$ecoli[,1],y=ddG$ecoli[,2],xpoints=ddG$assist[,1],ypoints=ddG$assist[,2], xlab="ddG",ylab="length",plotName="trial")
+#plotPS(x=ddG$ecoli[,1],y=ddG$ecoli[,2],xpoints=ddG$assist[,1],ypoints=ddG$assist[,2], xlab="ddG",ylab="length",plotName1="trial1",plotName2="trial2")
 #ellipsoidPlot(ddG,"ellipsoid")
-plotPS(x=data[,1],y=data[,2], xlab="phobicity",ylab="length",plotName="trial")
-#data <- testStuff("wenjunh")
-
+#plotPS(x=data$ecoli[,1],y=data$ecoli[,2],xpoints=data$assist[,1],ypoints=data$assist[,2], xlab="phobicity",ylab="length",plotName1="trial1", plotName2="trial2")
+#data <- phobicity("wenjunh")
+#surfCharge <- netCharge("wenjunh") 
+#plotPS(x=surfCharge$ecoli[,1],y=surfCharge$ecoli[,2],xpoints=surfCharge$assist[,1],ypoints=surfCharge$assist[,2], xlab="netCharge",ylab="length",plotName1="trial1", plotName2="trial2")
+#normPlot(ddG$ecoli,ddG$assist,"trial")
+#plotPS(x=surfCharge$ecoli[,1],y=data$ecoli[,1],xpoints=surfCharge$assist[,1],ypoints=data$assist[,1], xlab="netCharge",ylab="Hydrophobicity",plotName1="trial1", plotName2="trial2")
 #energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
