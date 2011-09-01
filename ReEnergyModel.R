@@ -843,6 +843,8 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
   return(cysFraction)
 }
 
+
+#Below are used for actuall program running
 ddG <- energyCycle("ecoli","wenjunh",split=TRUE)
 #ddG <- proteinEnergyCycle("wenjunh")
 #ddG <- bootstrapEnergyCycle("nonassist",bootstrap=10, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
