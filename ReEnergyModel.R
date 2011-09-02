@@ -15,7 +15,7 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
   countMatrix <- sampleContacts(contacts)
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
-
+  cat("Fetching Data ...")
   if (split == FALSE) {
     cutoff <- 0.3
     pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
@@ -28,8 +28,7 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
     pfracs <- list(pfracsfold, pfracsunfold)
 
   } else {
-
-    cat("Fetching Data ...")
+    
     cutoff <- 0.3
     countsurf <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
     pidsfold <- fetchPDBIDs(dataset, username)
@@ -73,46 +72,52 @@ bootstrapEnergyCycle <- function(dataset, bootstrap=500, username=myUsername, co
     cutoff <- -1.0
     pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
 
-    ddG <- empty.df(c("Close", "Open"), 1:bootstrap)
+    ddG <- empty.df(c("Close", "Open", "Diff"), 1:bootstrap)
     cat("Bootstrapping\n")
   for(i in 1:bootstrap) {
     cat(paste("\rbootstrap:", i, "/", bootstrap))
     pfracs <- list(pfracsfold[pids[sample(length(pids), replace=T)], ], pfracsunfold[pids[sample(length(pids), replace=T)], ])
 
-    ddG[i,"Close"] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau)
-    ddG[i, "Open"] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau)
+    ddG[i,"Close"] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau, split=FALSE)
+    ddG[i,"Open"] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau, split=FALSE)
+    ddG[i,"Diff"] <- ddG[i,"Close"] - ddG[i,"Open"]
   }
     cat("done\n")
     return(ddG)
 }
 
-proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", contacts=fetchContacts(paste(dataset1, "_surface_contacts.csv",sep=""), username), pidsecoli=NULL, pidsassist=NULL) {
+proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", contacts=fetchContacts(paste(dataset1, "_surface_contacts.csv",sep=""), username), pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
   countMatrix <- sampleContacts(contacts)
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
-  if(is.null(pidsecoli) & is.null(pidsassist)) {
+  if(sample == FALSE) {
     pidsecoli <- fetchPDBIDs(dataset1, username)
     pidsassist <- fetchPDBIDs(dataset2, username)
-    indices <- sample(length(pidsecoli),replace=TRUE)
-    indicesassist <- sample(length(pidsassist),replace=TRUE)
-    pidsecoli <- pidsecoli[indices]
-    pidsassist <- pidsassist[indicesassist]
-    save(pidsecoli,file="pidsecoli.txt")
-    save(pidsassist,file="pidsassist.txt")
-  } 
+  } else {
+    if(is.null(pidsecoli) & is.null(pidsassist)) {
+      pidsecoli <- fetchPDBIDs(dataset1, username)
+      pidsassist <- fetchPDBIDs(dataset2, username)
+      indices <- sample(length(pidsecoli),replace=TRUE)
+      indicesassist <- sample(length(pidsassist),replace=TRUE)
+      pidsecoli <- pidsecoli[indices]
+      pidsassist <- pidsassist[indicesassist]
+      save(pidsecoli,file="pidsecoli.txt")
+      save(pidsassist,file="pidsassist.txt")
+    }
+  }
   cat("Fetching Data...")
   
   cutoff <- 0.3
   csurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
-  csurf <- csurf[indices,]
+  csurf <- csurf[pidsecoli,]
   csurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
-  csurfassist <- csurfassist[indicesassist,]
+  csurfassist <- csurfassist[pidsassist,]
   
   cutoff <- -1.0
   cunfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
-  cunfold <- cunfold[indices,]
+  cunfold <- cunfold[pidsecoli,]
   cunfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
-  cunfoldassist <- cunfoldassist[indicesassist,]
+  cunfoldassist <- cunfoldassist[pidsassist,]
   
   cburied <- cunfold - csurf
   cburiedassist <- cunfoldassist - csurfassist
@@ -158,8 +163,8 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
     }
     else {
       ener <- 0.
-      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts, hydration=TRUE)
-#      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts, hydration=TRUE)
+#      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts, hydration=TRUE)
+      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts, hydration=TRUE)
       ddGecoli[i,1] <- -ener
       cat(paste("\rProcessing DataSet1...", i,"/",length(pidsecoli)))
     }
@@ -175,8 +180,8 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
 
   for(i in 1:length(pidsassist)) {
     ener <- 0.
-    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist, hydration=TRUE)
-#    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist, hydration=TRUE)
+#    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist, hydration=TRUE)
+    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist, hydration=TRUE)
     ddGassist[i,1] <- -ener
     cat(paste("\rProcessing DataSet2...", i,"/",length(pidsassist)))
     ddGassist[i,2] <- sum(countsassist$cunfoldassist[pidsassist[i],])
@@ -200,7 +205,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau,split, surf
   }
   names(hydration) <- colnames(countMatrix)
   names(contact) <- colnames(countMatrix)
-  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )  
+  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
 
   if (split == FALSE) { 
     sigmaXln <- array(0,2)
@@ -218,7 +223,6 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau,split, surf
        }
       sigmaXln[i] <- sum(X)      
     }
-    print(sigmaXln)
     deltaG = -(sigmaXln[1] * lambdaf - sigmaXln[2] * lambdau)
 
   } else {
@@ -253,10 +257,10 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau,split, surf
 
     X <- array(0, ncol(pfracs$punfold))
     for (i in 1:ncol(pfracs$punfold)) {
-      Y <- rep(0, ncol(pfracs$punfold))
-      for (j in 1:ncol(pfracs$punfold)) {
-        t1 <- countMatrix[colnames(pfracs$punfold)[i], colnames(pfracs$punfold)[j]] * pfracs$punfold[i,j] * contact[colnames(pfracs$punfold)[j]]
-        t2 <- hydration[colnames(pfracs$punfold)[i]] / sum(hydration) * hydration[colnames(pfracs$punfold)[j]] * pfracs$punfold[i,j]
+      Y <- rep(0, length(yDist))
+      for (j in 1:length(yDist)) {
+        t1 <- countMatrix[colnames(pfracs$punfold)[i], colnames(pfracs$punfold)[j]] * yDist[j] * contact[colnames(pfracs$punfold)[j]]
+        t2 <- hydration[colnames(pfracs$punfold)[i]] / sum(hydration) * hydration[colnames(pfracs$punfold)[j]] * yDist[j]
         Y[j] <- as.double(t1) + as.double(t2)
       }
       sigmaY <- log(sum(Y))
@@ -318,9 +322,9 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
     sum <- 0.
     for (i in 1:ncol(counts$cunfold)) {
       pxy <- 0.
-      for (j in 1:ncol(pfracs$punfold)) {
-        t1 <- countMatrix[i,j] * pfracs$punfold[PDBID,j] * contact[j]
-        t2 <- hydration[i] / sum(hydration) * hydration[j] * pfracs$punfold[PDBID,j]
+      for (j in 1:length(yDist)) {
+        t1 <- countMatrix[i,j] * yDist[j] * contact[j]
+        t2 <- hydration[i] / sum(hydration) * hydration[j] * yDist[j]
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sigmaY <- log(pxy)
@@ -365,8 +369,8 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
     sum <- 0.
     for (i in 1:ncol(counts$cunfold)) {
       pxy <- 0.
-      for (j in 1:ncol(pfracs$punfold)) {
-        pxy <- pxy + countMatrix[i,j] * pfracs$punfold[PDBID,j]
+      for (j in 1:length(yDist)) {
+        pxy <- pxy + countMatrix[i,j] * yDist[j]
       }
       sigmaY <- log(pxy)
       sum <- sum + as.double(counts$cunfold[PDBID,i] * sigmaY)
@@ -845,9 +849,14 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 
 
 #Below are used for actuall program running
-ddG <- energyCycle("ecoli","wenjunh",split=TRUE)
-#ddG <- proteinEnergyCycle("wenjunh")
-#ddG <- bootstrapEnergyCycle("nonassist",bootstrap=10, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
+#ddG <- energyCycle("ecoli","wenjunh",split=TRUE)
+#load("pidsecoli.txt")
+#load("pidsassist.txt")
+ddG2 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+#ddG_assist <- bootstrapEnergyCycle("assist",bootstrap=100, username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
+#save(ddG_assist, file="ddG_boots_assist.Rdata")
+#ddG_nonassist <- bootstrapEnergyCycle("nonassist",bootstrap=100, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
+#save(ddG_nonassist, file="ddG_boots_nonassist.Rdata")
 #ddG
 #q(save="yes")
 #normalPlot(ddG,"ddGquan")
