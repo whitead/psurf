@@ -11,6 +11,7 @@ groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
 
 
+
 energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1, split=FALSE) {
   countMatrix <- sampleContacts(contacts)
 
@@ -414,6 +415,25 @@ energyBootstrap <- function(bootstrap,dataset,username=myUsername,
   return(ener)
 }
 
+hydrationModel <- function(countMatrix, yDist) {
+  contact <- array(0,ncol(countMatrix))
+  hydration <- array(0,ncol(countMatrix))
+  for (l in 1:ncol(countMatrix)) {
+    hydration[l] <- countMatrix["WATER",l] / sum(countMatrix[c(1:20,which(rownames(countMatrix) == "WATER")),l]) * (1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]) + countMatrix["FREE",l] / countMatrix["TOTAL",l]
+  contact[l] <- 1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]
+  }
+  names(hydration) <- colnames(countMatrix)
+  names(contact) <- colnames(countMatrix)
+  yDist <- yDist[match(colnames(countMatrix),names(yDist))]
+
+  g <- 0
+  for (i in 1:length(yDist)) {
+     g <- g + yDist[i] * log(hydration[i])
+   }
+
+  return (g)
+}
+  
 minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
 
 
@@ -852,7 +872,7 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 #ddG <- energyCycle("ecoli","wenjunh",split=TRUE)
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-ddG2 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+#ddG2 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 #ddG_assist <- bootstrapEnergyCycle("assist",bootstrap=100, username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #save(ddG_assist, file="ddG_boots_assist.Rdata")
 #ddG_nonassist <- bootstrapEnergyCycle("nonassist",bootstrap=100, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
@@ -874,3 +894,58 @@ ddG2 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassi
 #minimizeEnergy("ecoli", "wenjunh")
 
 
+#Used to output value for python code
+contacts = fetchContacts("ecoli_surface_contacts.csv", "wenjunh")
+countMatrix <- sampleContacts(contacts)
+
+gfold <- hydrationModel(countMatrix,groDist["GroEL_Open",])
+gunfold <- hydrationModel(countMatrix,groDist["GroEL_Close",])
+dG <- gfold-gunfold
+
+#hydration <- array(0,ncol(countMatrix))
+#  contact <- array(0,ncol(countMatrix))
+#  for (l in 1:ncol(countMatrix)) {
+#    hydration[l] <- countMatrix["WATER",l] / sum(countMatrix[c(1:20,which(rownames(countMatrix) == "WATER")),l]) * (1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]) + countMatrix["FREE",l] / countMatrix["TOTAL",l]
+#    contact[l] <- 1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]
+#  }
+#  names(hydration) <- colnames(countMatrix)
+#  names(contact) <- colnames(countMatrix)
+#  countMatrix <- apply(countMatrix[c(1:20, which(rownames(countMatrix) == "WATER")),], 2, function(row) {row / sum(row)} )
+#write.table(countMatrix, file = "countMatrix.txt", row.names = FALSE, col.names = FALSE)
+#write.table(contact, file = "contact.txt", row.names = FALSE, col.names = FALSE)
+#write.table(hydration, file = "hydration.txt", row.names = FALSE, col.names = FALSE)
+
+#dataset <- "ecoli"
+#username <- "wenjunh"
+
+#cutoff <- 0.3
+#countsurf <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+#pidsfold <- fetchPDBIDs(dataset, username)
+
+#cutoff <- -1.0
+#countunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+#pidsunfold <- fetchPDBIDs(dataset, username)
+
+#countburied <- countunfold - countsurf
+#surfrac <- sum(countsurf) / (sum(countsurf) + sum(countburied))
+
+#counts <- list(countsurf, countburied, countunfold)
+#pfracs <- counts
+#names(pfracs) <- c("psurf","pburied","punfold")
+    
+#for (i in 1:3) {
+#  for (j in 1:nrow(pfracs[[i]])) {
+#    pfracs[[i]][j,] <- pfracs[[i]][j,] / sum(pfracs[[i]][j,])
+#  }
+#}
+
+#groDist["GroEL_Open", ] <- groDist["GroEL_Open",match(colnames(countMatrix),nam#es(groDist["GroEL_Open",]))]
+#groDist["GroEL_Close", ] <- groDist["GroEL_Close",match(colnames(countMatrix),names(groDist["GroEL_Close",]))]
+#colnames(groDist) <- colnames(countMatrix)
+
+#write(surfrac, file = "surfrac.txt")
+#write.table(pfracs$psurf, file = "psurf.txt", row.names = FALSE, col.names = FALSE)
+#write.table(pfracs$pburied, file = "pburied.txt", row.names = FALSE, col.names = FALSE)
+#write.table(pfracs$punfold, file = "punfold.txt", row.names = FALSE, col.names = FALSE)
+#write.table(groDist["GroEL_Open", ], file = "GroOp.txt", row.names = FALSE, col.names = FALSE)
+#write.table(groDist["GroEL_Close", ], file = "GroCl.txt", row.names = FALSE, col.names = FALSE)
