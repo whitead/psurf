@@ -11,7 +11,7 @@ groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
 
 
-
+#This part of the code incorporates the lambdaf and lambdau parameters, NOT USED any more.
 energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1, split=FALSE) {
   countMatrix <- sampleContacts(contacts)
 
@@ -62,6 +62,7 @@ energyCycle <- function(dataset, username=myUsername, contacts=fetchContacts(pas
   return(ddG)
 }
 
+#This bootstrap is linked to the abor energycycle code, NOT USED as well
 bootstrapEnergyCycle <- function(dataset, bootstrap=500, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1) {
 
     countMatrix <- sampleContacts(contacts)
@@ -87,6 +88,7 @@ bootstrapEnergyCycle <- function(dataset, bootstrap=500, username=myUsername, co
     return(ddG)
 }
 
+#The mean enegycycle code, worked for ecoli, assisted proteins, also used by the stochastic annealing code (Python)
 proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", contacts=fetchContacts(paste(dataset1, "_surface_contacts.csv",sep=""), username), pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
   countMatrix <- sampleContacts(contacts)
 
@@ -273,6 +275,8 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,lambdaf,lambdau,split, surf
   return (deltaG)
 }
 
+
+#This is the code for free energy model at 903 individual protein level
 proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydration=FALSE) {
   if (hydration == TRUE) {
     
@@ -384,6 +388,8 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
   return(ener[1] - ener[2])
 }
 
+
+
 energyBootstrap <- function(bootstrap,dataset,username=myUsername,
                             contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
 
@@ -415,6 +421,7 @@ energyBootstrap <- function(bootstrap,dataset,username=myUsername,
   return(ener)
 }
 
+#This part of the code is for quick reference of the hydration model
 hydrationModel <- function(countMatrix, yDist) {
   contact <- array(0,ncol(countMatrix))
   hydration <- array(0,ncol(countMatrix))
@@ -433,7 +440,8 @@ hydrationModel <- function(countMatrix, yDist) {
 
   return (g)
 }
-  
+
+#This is the energy minimization code using the built-in R optimization command, including numerical derivative, hessian etc.  
 minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
 
 
@@ -623,6 +631,8 @@ minimizeEnergy <- function(dataset, username=myUsername, lambdaf=1,lambdau=1, co
 #  print(numDev(groDist["GroEL_Open",], 0.0001))
 }
 
+
+# The following code until the end is for various plot commands
 normalPlot <- function(ddG,name) {
   x <- c(ddG$ecoli[,1],ddG$assist[,1])
   y <- c(ddG$ecoli[,2],ddG$assist[,2])
@@ -869,16 +879,22 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 
 
 #Below are used for actuall program running
-#ddG <- energyCycle("ecoli","wenjunh",split=TRUE)
+#ddG <- energyCycle("ecoli","wenjunh",split=TRUE)    
+
+#Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
 #ddG2 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+
+#Bootstrap executing code linked to previous energycycle code
 #ddG_assist <- bootstrapEnergyCycle("assist",bootstrap=100, username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #save(ddG_assist, file="ddG_boots_assist.Rdata")
 #ddG_nonassist <- bootstrapEnergyCycle("nonassist",bootstrap=100, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #save(ddG_nonassist, file="ddG_boots_nonassist.Rdata")
 #ddG
 #q(save="yes")
+
+#Below are the executing codes for various plots
 #normalPlot(ddG,"ddGquan")
 #plotPS(x=ddG$ecoli[,1],y=ddG$ecoli[,2],xpoints=ddG$assist[,1],ypoints=ddG$assist[,2], xlab="ddG",ylab="length",plotName1="trial1",plotName2="trial2")
 #ellipsoidPlot(ddG,"ellipsoid")
@@ -889,18 +905,20 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 #plotPS(x=surfCharge$ecoli[,1],y=surfCharge$ecoli[,2],xpoints=surfCharge$assist[,1],ypoints=surfCharge$assist[,2], xlab="netCharge",ylab="length",plotName1="trial1", plotName2="trial2")
 #normPlot(ddG$ecoli,ddG$assist,"trial")
 #plotPS(x=surfCharge$ecoli[,1],y=data$ecoli[,1],xpoints=surfCharge$assist[,1],ypoints=data$assist[,1], xlab="netCharge",ylab="Hydrophobicity",plotName1="trial1", plotName2="trial2")
+
+#Executing codes for the energy model that NOT USED any more
 #energyCycle("assist", username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
 
 
 #Used to output value for python code
-contacts = fetchContacts("ecoli_surface_contacts.csv", "wenjunh")
-countMatrix <- sampleContacts(contacts)
+#contacts = fetchContacts("ecoli_surface_contacts.csv", "wenjunh")
+#countMatrix <- sampleContacts(contacts)
 
-gfold <- hydrationModel(countMatrix,groDist["GroEL_Open",])
-gunfold <- hydrationModel(countMatrix,groDist["GroEL_Close",])
-dG <- gfold-gunfold
+#gfold <- hydrationModel(countMatrix,groDist["GroEL_Open",])
+#gunfold <- hydrationModel(countMatrix,groDist["GroEL_Close",])
+#dG <- gfold-gunfold
 
 #hydration <- array(0,ncol(countMatrix))
 #  contact <- array(0,ncol(countMatrix))
