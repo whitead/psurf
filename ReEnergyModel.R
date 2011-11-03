@@ -967,3 +967,5 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 #write.table(pfracs$punfold, file = "punfold.txt", row.names = FALSE, col.names = FALSE)
 #write.table(groDist["GroEL_Open", ], file = "GroOp.txt", row.names = FALSE, col.names = FALSE)
 #write.table(groDist["GroEL_Close", ], file = "GroCl.txt", row.names = FALSE, col.names = FALSE)
+
+#end of script
