@@ -37,7 +37,6 @@ hydrationsum = 0
 for i in range(20) :
   hydrationsum = hydrationsum + float(hydration[i])
 
-
 # Begining of the MC program
 with open("distRec_test.txt","w") as f:
   with open("potRec_test.txt","w") as g:
@@ -60,14 +59,15 @@ with open("distRec_test.txt","w") as f:
         temp = 0
         for k in range(903) :
           temp = temp + float(pSurf[20 * k + i])
-        X[i] = temp / 903 * sigmaY    
+        X[i] = temp / 903 * sigmaY
+        
       sigmaXln[0] = sum(X) * surFrac
 
       X = [0] * 20
       for i in range(20) :
         Y = [0] *  len(ini)
         for j in range(20) :
-          t1 = float(countMatrix[i * 20 + j]) * float(pBuried[j]) * float(contact[j])  #need the index for pBuried here
+          t1 = float(countMatrix[i * 20 + j]) * float(pBuried[i * 20 + j]) * float(contact[j])  #need the index for pBuried here
           t2 = float(hydration[i]) / hydrationsum * float(hydration[j]) * ini[j]
           Y[j] = t1 + t2
         sigmaY = math.log(sum(Y))
@@ -144,11 +144,11 @@ with open("distRec_test.txt","w") as f:
                   tR.append(" ")
               tR = "".join(tR)
               f.write("%s %s\n" %(j+1,tR))
-              g.write("%s %s %s\n" %(j+1,str(-potP),T[j]))
+              g.write("%s %s %s\n" %(j+1,str(potP),T[j]))
               Rnew = numpy.random.mtrand.dirichlet(a,size=1).tolist()[0]
               for k in range(20):
                   R[k] = Rs[k] * (1-float(alpha[0])) + Rnew[k] * float(alpha[0])
-              pot = -potential(R)
+              pot = potential(R)
               
           else:
               accept = accept + 1
@@ -158,13 +158,13 @@ with open("distRec_test.txt","w") as f:
                   tR.append(" ")
               tR = "".join(tR)
               f.write("%s %s\n" %(j+1,tR))
-              g.write("%s %s %s\n" %(j+1,str(-potP),T[j]))
+              g.write("%s %s %s\n" %(j+1,str(potP),T[j]))
               Rs = R
               Rnew = numpy.random.mtrand.dirichlet(a,size=1).tolist()[0]
               for k in range(20):
                   R[k] = R[k] * (1-float(alpha[0])) + Rnew[k] * float(alpha[0])
               potP = pot
-              pot = -potential(R)
+              pot = potential(R)
           if total == (step / cycle) :
               currenttotal = totalcyc * step / cycle
               frac = (frac * currenttotal +  float(accept)) / (currenttotal + float(total))
@@ -183,8 +183,14 @@ with open("distRec_test.txt","w") as f:
 
     pot = [0] * ss                       #big steps, ss value is small for now
     R = numpy.random.mtrand.dirichlet(a, size=1).tolist()[0]     #draw initial guess from dirichlet distribution
+
+##    the following three lines are using the GroEL inside surface distribution as the input (for obtaining reference values)
+##    c = []
+##    for x in range(len(groEL_Close)):
+##        c.append(float(groEL_Close[x]))
+
     for i in range(ss) :     
-        pot[i] = -potential(R)
+        pot[i] = potential(R)
         print("\r%s / %s" %(i+1, ss))
         if i > 0 and pot[i] > pot[i-1]:     # for minimization, plug in current Potential(pot) and previous potential(potP) in to MH program
             MH(anss,cycle,pot[i],pot[i-1],R)
