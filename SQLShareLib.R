@@ -140,7 +140,7 @@ fetchSurfResidues <- function(dataset, cutoff, pdbid, username=myUsername) {
 }
 
 #Get all the surface residues in the given dataset. Normalize turns it into a list of distributions (one per PDB).
-fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUsername) {
+fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUsername, gapTol=0) {
   sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
 
