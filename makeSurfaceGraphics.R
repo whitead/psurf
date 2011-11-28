@@ -83,13 +83,13 @@ plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, boots
 
 #Get ratios
 
-efracs.surf <- fetchAllSurfResidues("eh1", cutoff, normalize=FALSE)
-pfracs.surf <- fetchAllSurfResidues("cph1", cutoff, normalize=FALSE)
-rfracs.surf <- fetchAllSurfResidues("h1_w", cutoff, normalize=FALSE)
+efracs.surf <- fetchAllSurfResidues("eh2_w_nogaps", cutoff, normalize=FALSE)
+pfracs.surf <- fetchAllSurfResidues("cph2_w_nogaps", cutoff, normalize=FALSE)
+rfracs.surf <- fetchAllSurfResidues("h2_w_nogaps", cutoff, normalize=FALSE)
 
-efracs.interior <- fetchAllBuriedResidues("eh1", 0.05, normalize=FALSE)
-pfracs.interior <- fetchAllBuriedResidues("cph1", 0.05, normalize=FALSE)
-rfracs.interior <- fetchAllBuriedResidues("h1_w", 0.05, normalize=FALSE)
+efracs.interior <- fetchAllBuriedResidues("eh2_w_nogaps", 0.05, normalize=FALSE)
+pfracs.interior <- fetchAllBuriedResidues("cph2_w_nogaps", 0.05, normalize=FALSE)
+rfracs.interior <- fetchAllBuriedResidues("h2_w_nogaps", 0.05, normalize=FALSE)
 
 save.image()
 
@@ -124,19 +124,19 @@ graphics.off()
 
 #get fractions
 
-efracs <- fetchAllSurfResidues("eh1", cutoff, normalize=TRUE)
-pfracs <- fetchAllSurfResidues("cph1", cutoff, normalize=TRUE)
-rfracs <- fetchAllSurfResidues("h1_w", cutoff, normalize=TRUE)
+efracs <- fetchAllSurfResidues("eh2_w_nogaps", cutoff, normalize=TRUE)
+pfracs <- fetchAllSurfResidues("cph2_w_nogaps", cutoff, normalize=TRUE)
+rfracs <- fetchAllSurfResidues("h2_w_nogaps", cutoff, normalize=TRUE)
 
 #get pbd ids
-hids <- fetchPDBIDs("h1_w")
-pids <- fetchPDBIDs("cph1")
-eids <- fetchPDBIDs("eh1")
+hids <- fetchPDBIDs("h2_w_nogaps")
+pids <- fetchPDBIDs("cph2_w_nogaps")
+eids <- fetchPDBIDs("eh2_w_nogaps")
 
 
 #Make charge histograms
 cols <- colorRampPalette(c("red","white","blue"))
-datasets <- c("cph1", "eh1", "h1_w")
+datasets <- c("cph2_w_nogaps", "eh2_w_nogaps", "h2_w_nogaps")
 for(i in 1:length(datasets)) {
   d <- datasets[i]
   cat(paste("loading", d, "charge densities\n"))
@@ -173,7 +173,7 @@ for(i in 1:length(hids)) {
   
 save.image()
 
-cairo_pdf("pca.pdf", width=3.3, height=3.3, pointsize=12)
+cairo_pdf("pca.pdf", width=10, height=10, pointsize=12)
 par(family="LMRoman10", fg="light gray")
 
 pc <- princomp(rfracs)
@@ -222,16 +222,16 @@ legend("topright", col=c("blue", "dark gray", "dark red"), legend=c("Human", "Cy
 graphics.off()
                
 #surface correlation matrices
-correlationPicture(rfracs, "h1_w")
-correlationPicture(pfracs, "cph1")
-correlationPicture(efracs, "eh1")
+correlationPicture(rfracs, "h2_w_nogaps")
+correlationPicture(pfracs, "cph2_w_nogaps")
+correlationPicture(efracs, "eh2_w_nogaps")
 
 #load pairs
 
 
-hpairs <- loadpairs("h1_w", cutoff, hids)
-ppairs <- loadpairs("cph1", cutoff, pids)
-epairs <- loadpairs("eh1", cutoff, eids)
+hpairs <- loadpairs("h2_w_nogaps", cutoff, hids)
+ppairs <- loadpairs("cph2_w_nogaps", cutoff, pids)
+epairs <- loadpairs("eh2_w_nogaps", cutoff, eids)
 
 save.image()
 
