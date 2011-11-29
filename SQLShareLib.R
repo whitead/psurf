@@ -61,7 +61,7 @@ fetchContacts <- function(tableName, username=myUsername) {
 sampleContacts <- function(countDataFrame, turnOffC=FALSE) {
 
   ids <- unique(countDataFrame[,1])
-  indices <- sample(length(ids), replace=TRUE)
+##  indices <- sample(length(ids), replace=TRUE)  #replcaed the random number sample -- Wenjun 11/14/11
   anames <- colnames(countDataFrame)[-c(1,2)]
 
   counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
