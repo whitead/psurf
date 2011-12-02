@@ -365,17 +365,3 @@ loadpairs <- function(dataset, cutoff, ids) {
 
   return(pairlist)
 }
-
-#Make a picture of a correlation matrix
-correlationPicture <- function(matrix, name) {
-
-  cm <- cor(matrix)
-  cm[cm == 1] <- 0
-  ms <- apply(matrix, MARGIN=2, FUN=mean)
-  cairo_pdf(paste(name, "_corr.pdf", sep=""), width=7, height=7, pointsize=12)
-  circle.corr(cm, ms, order=F, bg="gray50", col=colorRampPalette(c("blue", "white", "red"))(50))
-  graphics.off()
-  cairo_pdf(paste(name, "_corr_PCA.pdf", sep=""), width=7, height=7, pointsize=12)
-  circle.corr(cm, ms, order=T, bg="gray50", col=colorRampPalette(c("blue", "white", "red"))(50))
-  graphics.off()
-}

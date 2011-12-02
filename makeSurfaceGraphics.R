@@ -2,6 +2,23 @@
 
 source("SQLShareLib.R")
 
+#Make a picture of a correlation matrix
+correlationPicture <- function(matrix, name) {
+
+  cm <- cor(matrix)
+  cat(paste("Correlation matrix for:", name))
+  print(cm)
+  cm[cm == 1] <- 0
+  ms <- apply(matrix, MARGIN=2, FUN=mean)
+  cairo_pdf(paste(name, "_corr.pdf", sep=""), width=7, height=7, pointsize=12)
+  circle.corr(cm, ms, order=F, bg="gray50", col=colorRampPalette(c("blue", "white", "red"))(50))
+  graphics.off()
+  cairo_pdf(paste(name, "_corr_PCA.pdf", sep=""), width=7, height=7, pointsize=12)
+  circle.corr(cm, ms, order=T, bg="gray50", col=colorRampPalette(c("blue", "white", "red"))(50))
+  graphics.off()
+  
+}
+
 
 plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, bootstrapNumber=500) {
 
