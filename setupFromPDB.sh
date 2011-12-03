@@ -1,7 +1,12 @@
 #!/bin/bash
 
-PKAL=/home/whitead/pdb2pqr/pdb2pqr.py
-GERS=$HOME/Documents/ProteinSurfaces/lib/gerstein-surf
+#PKAL=/home/whitead/pdb2pqr/pdb2pqr.py
+#GERS=$HOME/Documents/ProteinSurfaces/lib/gerstein-surf
+
+#Local Directory for Wenjun Huang's Computer:
+PKAL=/home/wenjunh/pdb2pqr/pdb2pqr.py
+GERS=/home/wenjunh/Documents/ProteinSurfaces/calc-surface
+DSSP=/home/wenjunh/DSSP/dssp-2
 
 for i in `ls *.gz`; 
   do gunzip $i; 
@@ -17,21 +22,29 @@ if [[ !(-e chargeList) ]]; then
 fi;
 
 for i in `ls`; do 
-  if [[ $i != "chargeList" && !(-e $i/$i.pka)]]; then
-    cat $i/$i.pdb | grep -v " HOH " > $i/$i.temp.pdb
-    $GERS -i $i/$i.temp.pdb -o $i/$i.surf;
-    $GERS -i $i/$i.pdb -o $i/$i.wwater.surf;
-    SF=`$HOME/Documents/ProteinSurfaces/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
+  if [[ !(-e $i/$i.pka) && $i != "chargeList" ]]; then
+    $DSSP -i $i/$i.pdb -o $i/$i.dssp
+    if [[ !(-e $i/$i.surf) && !(-e $i/$i.wwater.surf)]]; then
+      cat $i/$i.pdb | grep -v " HOH " > $i/$i.temp.pdb
+      $GERS -i $i/$i.temp.pdb -o $i/$i.surf;
+      $GERS -i $i/$i.pdb -o $i/$i.wwater.surf; 
+    fi;
+#    SF=`$HOME/Documents/ProteinSurfaces/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
+    SF=`$HOME/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
     /usr/bin/python $PKAL --noopt --ff=PARSE -v --with-ph=7.0 $i/$i.pdb $i/$i.pka;
     CH=`sed -n 's/REMARK   6 Total charge on this protein: \([-0-9\.]*\) e/\1/p' $i/$i.pka`;
     echo "$i $CH $SF" >> chargeList;
   else
     echo "Skipping $i";
-    cat $i/$i.pdb | grep -v " HOH " > $i/$i.temp.pdb
-    $GERS -i $i/$i.temp.pdb -o $i/$i.surf;
-    $GERS -i $i/$i.pdb -o $i/$i.wwater.surf;
-    SF=`$HOME/Documents/ProteinSurfaces/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
+    $DSSP -i $i/$i.pdb -o $i/$i.dssp
+    if [[ !(-e $i/$i.surf) && !(-e $i/$i.wwater.surf)]]; then
+      cat $i/$i.pdb | grep -v " HOH " > $i/$i.temp.pdb
+      $GERS -i $i/$i.temp.pdb -o $i/$i.surf;
+      $GERS -i $i/$i.pdb -o $i/$i.wwater.surf;
+    fi;
+#    SF=`$HOME/Documents/ProteinSurfaces/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
     CH=`sed -n 's/REMARK   6 Total charge on this protein: \([-0-9\.]*\) e/\1/p' $i/$i.pka`;
+    SF=`$HOME/psurf/analyzeSA.py $i/$i.surf 67 $i/sadata;`
     echo "$i $CH $SF" >> chargeList;
   fi;
 done;
