@@ -409,7 +409,7 @@ class Protein:
     def writeCSVResidues(self, filename, header=False):
        lines = []
        if(header):
-          lines.append("pdb_id, res_index, res_type, res_type_sh, chain, res_surface_area, res_surface_area_ratio, phi, psi\n")
+          lines.append("pdb_id, res_index, res_type, res_type_sh, chain, res_surface_area, res_surface_area_ratio, phi, psi, second_Struct\n")
 
        for i,r in zip(range(len(self.residues)), self.residues):
           lines.append(self.id)
@@ -437,6 +437,7 @@ class Protein:
                 lines[-1] += ",%6.4f" % (self._getPsi(i))
              except:
                 lines[-1] += ",NULL"
+          lines[-1] += "," + r.getsecStruct()
           lines[-1] += "\n"
 
        with open(filename, 'w') as f:
@@ -624,7 +625,12 @@ def readProteinSA(pdbfile):
                 if(proteinnum[0] != proteinnum[1]):  #check residue number              
                     currentR = Residue()               #initialize a new residue
                     proteinnum[1] = proteinnum[0]        #assign new residue number
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
+                    pdbDSSP = "%s%s" %(pdbfile[0:4],".dssp")
+                    try:
+                       secStruc = readProteinDSSP(pdbDSSP,m.group(4), int(m.group(5)))
+                    except IOError:
+                       secStruc = 'NA'
+                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)), secStruc)  #initialization
                     prot.addResidue(currentR)              #add new residue to protein
 
             
