@@ -125,11 +125,12 @@ class Residue:
        self.parent = None
        self.hydrated = None
 
-   def fromData(self, atoms, rType, chain, resNum):
+   def fromData(self, atoms, rType, chain, resNum, secStruc):
        self.type = rType
        self.atoms = atoms
        self.chain = chain
        self.index = resNum
+       self.secStruc = secStruc
 
    def __len__(self):
       return len(self.atoms)
@@ -183,6 +184,9 @@ class Residue:
          if(abs(self.getIndex() - other.getIndex()) == 1):
             return True
       return False
+
+   def getsecStruct(self):
+      return self.secStruc
 
    def getAtoms(self):
       return self.atoms
@@ -530,6 +534,23 @@ class sqMatrix:
     def setRow(self, row, array):
         self.matrix[row:(row + dim)] = array
 
+def readProteinDSSP(dsspfile, chain, resNum):
+
+    with open(dsspfile, "r") as f: #open the file
+       for line in f.readlines():
+          try:
+             temp = float(line[125:129])
+          except ValueError:
+             pass
+          else:
+             if (line[11] == chain and int(line[7:10]) == resNum) :
+                if (line[16] == " "):
+                   out = 'C'
+                else:
+                   out = line[16]
+             else:
+                pass
+    return out
 
 def readProtein(pdbfile):
 
@@ -549,7 +570,12 @@ def readProtein(pdbfile):
                 if(proteinnum[0] != proteinnum[1]):  #check residue number              
                     currentR = Residue()               #initialize a new residue
                     proteinnum[1] = proteinnum[0]        #assign new residue number
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
+                    pdbDSSP = "%s%s" %(pdbfile[0:4],".dssp")
+                    try:
+                       secStruc = readProteinDSSP(pdbDSSP,m.group(4), int(m.group(5)))
+                    except IOError:
+                       secStruc = 'NA'
+                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)), secStruc)  #initialization
                     prot.addResidue(currentR)              #add new residue to protein
 
             
