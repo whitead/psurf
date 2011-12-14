@@ -32,16 +32,16 @@ httpheader=c(Authorization =paste("ss_apikey ", myUsername,
 #Turn an SQL contacts table into a dataframe
 fetchContacts <- function(tableName, username=myUsername) {
 
+
   sql <- paste("select * FROM [", username, "@washington.edu].[", tableName, "]", sep="")
-  rawData <- fetchdata(sql)
-
-  rnames <- (1:(length(rawData[[1]]) - 1))
-
+  
   cat(paste("Fetching", tableName, "\n"))
+  rawData <- fetchdata(sql)
+  rnames <- (1:(length(rawData[[1]]) - 1))
+  
   data <- empty.df(rawData[[1]][[1]], rnames)
 
   lconvert <- function(row) {sapply(row[-c(1,2)], as.integer)}
-
 
   temp <- lapply(rawData[[1]][-1], lconvert)
   data[,-c(1,2)] <- matrix(unlist(temp), ncol=ncol(data) - 2, byrow=T)
@@ -52,8 +52,7 @@ fetchContacts <- function(tableName, username=myUsername) {
   data[,1:2] <- matrix(unlist(temp), ncol=2, byrow=T)
   
   return(data)
-    
-  return(data)
+
 }
 
 #Given a dataframe containing contact matrices for a list of pdb_ids,
@@ -61,8 +60,7 @@ fetchContacts <- function(tableName, username=myUsername) {
 sampleContacts <- function(countDataFrame, turnOffC=FALSE) {
 
   ids <- unique(countDataFrame[,1])
-##  indices <- sample(length(ids), replace=TRUE)  #replcaed the random number sample -- Wenjun 11/14/11
-  indices <- 1:length(ids)
+  indices <- sample(length(ids), replace=TRUE) 
   anames <- colnames(countDataFrame)[-c(1,2)]
 
   counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
@@ -141,9 +139,14 @@ fetchSurfResidues <- function(dataset, cutoff, pdbid, username=myUsername) {
 }
 
 #Get all the surface residues in the given dataset. Normalize turns it into a list of distributions (one per PDB).
-fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUsername, gapTol=0) {
-  sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
+fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUsername, gapTol=0, secStruct=NULL) {
+  if(is.null(secStruct)) {
+   sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
+  } else{
+    sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
+      " AND res_surface_area_ratio IS NOT NULL AND structure = \'", secStruct ,"\'", sep="")
+  }
 
   rlist <- fetchdata(sql)
 
@@ -359,8 +362,9 @@ loadpairs <- function(dataset, cutoff, ids) {
   cat(paste("loading", dataset, "pairs\n"))
   
   for(i in 1:length(ids)) {
+    cat(ids[i])
     pairlist[[i]] <- fetchResiduePairs(dataset, cutoff, ids[i], symm=TRUE)
-    cat(paste("\r",i,"/",length(ids), " "))
+#    cat(paste("\r",i,"/",length(ids), " "))
   }
   cat("\n")
 

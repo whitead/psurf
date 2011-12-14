@@ -20,7 +20,7 @@ correlationPicture <- function(matrix, name) {
 }
 
 
-plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, bootstrapNumber=500) {
+plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, bootstrapNumber=5000) {
 
   psum <- pairslist[[1]]
   #find most significant
@@ -91,7 +91,14 @@ plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, boots
   print(yy)
   png(paste(name, ".png", sep=""), width=3.3 * 500, height=2.5 * 500, pointsize=10, res=500)
   par(family="LMSans10", mar=c(3,4,0.5,0.5), cex.axis=0.65)
-  barx <- barplot(yy, axis.lty=1, col=c("gray50", "gray90"), main="", xlab="Amino Acid Pair", ylab="Observations", beside=T, ylim=c(0,max(eet) + max(yy)), names.arg=names(pmax))
+  barx <- barplot(yy, axis.lty=1, col=c("gray50", "gray90"), main="", xlab="Amino Acid Pair", ylab="Frequency", beside=T, ylim=c(0,max(eet) + max(yy)), names.arg=names(pmax))
+  error.bar(barx,yy,lower=eeb,upper=eet, length=0.03)
+  legend("topright", col=c("gray50", "gray90"), legend=c("Observed", "Background"), ncol=1, pch=15)
+  graphics.off()
+
+  cairo_pdf(paste(name, ".pdf", sep=""), width=3.42, height=2.58, pointsize=8)
+  par(family="LMSans10", mar=c(3,4,0.5,0.5), cex.axis=0.65)
+  barx <- barplot(yy, axis.lty=1, col=c("gray50", "gray90"), main="", xlab="Amino Acid Pair", ylab="Frequency", beside=T, ylim=c(0,max(eet) + max(yy)), names.arg=names(pmax))
   error.bar(barx,yy,lower=eeb,upper=eet, length=0.03)
   legend("topright", col=c("gray50", "gray90"), legend=c("Observed", "Background"), ncol=1, pch=15)
   graphics.off()
@@ -133,7 +140,7 @@ cairo_pdf("ratios.pdf", width=4.5, height=3.3, pointsize=12)
 par(family="LMRoman10", bg="transparent", cex=0.8)
 yy <- matrix(c(rrms, rpms, rems), byrow=T, nrow=3)
 ee <- matrix(c(sqrt(rrvs), sqrt(rpvs), sqrt(revs)), byrow=T, nrow=3)
-barx <- barplot(yy, col=c("light gray", "light blue", "dark red"), main="", xlab="Amino Acid", ylab="Density", beside=T, ylim=c(0,max(ee) + max(yy)), names.arg=aalist.sh)
+barx <- barplot(yy, col=c("light gray", "light blue", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,max(ee) + max(yy)), names.arg=aalist.sh)
 error.bar(barx,yy,ee,length=0.02)
 legend("topright", col=c("light gray", "light blue", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
 graphics.off()
@@ -154,6 +161,7 @@ eids <- fetchPDBIDs("eh2_w_nogaps")
 #Make charge histograms
 cols <- colorRampPalette(c("red","white","blue"))
 datasets <- c("cph2_w_nogaps", "eh2_w_nogaps", "h2_w_nogaps")
+breakNum <- c(40,20,10)
 for(i in 1:length(datasets)) {
   d <- datasets[i]
   cat(paste("loading", d, "charge densities\n"))
@@ -166,8 +174,15 @@ for(i in 1:length(datasets)) {
   png(paste(d,"_charges.png",sep=""), width=3.3*500, height=3.3*500, pointsize=10, res=500)
   par(family="LMSans10", cex=0.8)
   absmax <- max(cdens, -cdens)
-  brs <- seq(from = -absmax, to = absmax, length.out=40)
-  hist(cdens, breaks=brs, col=cols(40), xlab="Charge Desnsity", family="LMSans10", main="") 
+  brs <- seq(from = -absmax, to = absmax, length.out=10)
+  hist(cdens, breaks=brs, col=cols(10), xlab="Charge Desnsity", family="LMSans10", main="") 
+  graphics.off()
+
+  cairo_pdf(paste(d,"_charges.pdf",sep=""), width=3.42, height=2.58, pointsize=10)
+  par(family="LMSans10", cex=0.8)
+  absmax <- max(cdens, -cdens)
+  brs <- seq(from = -absmax, to = absmax, length.out=breakNum[i])
+  hist(cdens, breaks=brs, col=cols(breakNum[i]), xlab="Charge Desnsity", family="LMSans10", main="") 
   graphics.off()
 }
 
@@ -224,16 +239,25 @@ png("comb.png", width=3.3 * 500, height=2.5 * 500, pointsize=8, res=500)
 par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
 yy <- matrix(c(hms, pms, ems), byrow=T, nrow=3)
 ee <- matrix(c(sqrt(hvs / nrow(rfracs)),sqrt(pvs / nrow(pfracs)), sqrt(evs / nrow(efracs))), byrow=T, nrow=3)
-barx <- barplot(yy, col=c("light gray", "light blue", "dark red"), main="", xlab="Amino Acid", ylab="Density", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
+barx <- barplot(yy, col=c("light gray", "light blue", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
 error.bar(barx,yy,ee,length=0.01)
 legend("topright", col=c("light gray", "light blue", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
+graphics.off()
+
+cairo_pdf("comb.pdf", width=3.42, height=2.58, pointsize=8)
+par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
+yy <- matrix(c(hms, pms, ems), byrow=T, nrow=3)
+ee <- matrix(c(sqrt(hvs / nrow(rfracs)),sqrt(pvs / nrow(pfracs)), sqrt(evs / nrow(efracs))), byrow=T, nrow=3)
+barx <- barplot(yy, col=c("blue", "gray45", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
+error.bar(barx,yy,ee,length=0.02)
+legend("topright", col=c("blue", "gray45", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
 graphics.off()
 
 cairo_pdf("comb_black.pdf", width=7, height=3.3, pointsize=12)
 par(family="LMRoman10", bg="black", cex=0.8, fg="white", col.axis="white", col.lab="white")
 yy <- matrix(c(hms, pms, ems), byrow=T, nrow=3)
 ee <- matrix(c(sqrt(hvs / nrow(rfracs)),sqrt(pvs / nrow(pfracs)), sqrt(evs / nrow(efracs))), byrow=T, nrow=3)
-barx <- barplot(yy, col=c("blue", "dark gray", "dark red"), main="", xlab="Amino Acid", ylab="Density", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
+barx <- barplot(yy, col=c("blue", "dark gray", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
 error.bar(barx,yy,ee,length=0.02)
 legend("topright", col=c("blue", "dark gray", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
 graphics.off()
@@ -256,4 +280,6 @@ save.image()
 plotpairs(epairs, ems, evs, name="eh_pairs")
 plotpairs(ppairs, pms, pvs, name="cph_pairs")
 plotpairs(hpairs, hms, hvs, name="h_pairs")
+
+
 
