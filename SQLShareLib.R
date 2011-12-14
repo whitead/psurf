@@ -57,10 +57,13 @@ fetchContacts <- function(tableName, username=myUsername) {
 
 #Given a dataframe containing contact matrices for a list of pdb_ids,
 #this will turn it into a single contact matrix using a random sample of the pdb_ids (with replacement)
-sampleContacts <- function(countDataFrame, turnOffC=FALSE) {
+sampleContacts <- function(countDataFrame, turnOffC=FALSE, random=TRUE) {
 
   ids <- unique(countDataFrame[,1])
-  indices <- sample(length(ids), replace=TRUE) 
+  if(random = TRUE)
+    indices <- sample(length(ids), replace=TRUE)
+  else
+    indices <- 1:length(ids)
   anames <- colnames(countDataFrame)[-c(1,2)]
 
   counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
