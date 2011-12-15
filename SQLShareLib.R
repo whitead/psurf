@@ -60,7 +60,7 @@ fetchContacts <- function(tableName, username=myUsername) {
 sampleContacts <- function(countDataFrame, turnOffC=FALSE, random=TRUE) {
 
   ids <- unique(countDataFrame[,1])
-  if(random = TRUE)
+  if(random == TRUE)
     indices <- sample(length(ids), replace=TRUE)
   else
     indices <- 1:length(ids)
