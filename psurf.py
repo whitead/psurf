@@ -112,6 +112,7 @@ class Atom:
    def getCoord(self):
       return self.coord
 
+#Print out the formatted x,y,z coordinates
    def printCoord(self):
       return "%g %g %g" % (self.coord)
 
@@ -381,12 +382,14 @@ class Protein:
         return la
               
 
-    def writeXYZAtoms(self, filename):
+#this ouptputs a file of all the atom positions, defaults to only C-alpha
+    def writeXYZAtoms(self, filename, CAOnly=True):
        lines = []
        for r in self.residues:
           for a in r.getAtoms():
-             lines.append(a.printCoord())
-             lines.append("\n")
+             if(not CAOnly or a.getType() == "CA"):
+                lines.append(a.printCoord())
+                lines.append("\n")
        with open(filename, 'w') as f:
           f.writelines(lines)
              

@@ -12,11 +12,14 @@ lengths = []
 gaps = []
 lambdaMatrix = []
 
+
+#this will execute that PCA program on the xyz file dump
 def getLambdas(filename):
     args = shlex.split("%s %s" % (pcaProgName, filename))
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     p.wait()
     output = p.stdout.readline()
+    #read in the output from the pca.R file
     lambdas = [float(x) for x in output.split()]
     return lambdas
     
@@ -43,6 +46,9 @@ with open("chargeList", 'r') as f:
         scounts.append(p.getSurfaceCounts())
         lengths.append(len(p))
         gaps.append(p.getGapCount())
+
+        #dump the XYZ atoms, to accomplish the PCA.
+
         p.writeXYZAtoms("%s.xyz" % pdbid)
         lambdas = getLambdas("%s.xyz" % pdbid)
         lambdaMatrix.append(lambdas)
@@ -56,9 +62,12 @@ with open("chargeList.csv", 'w') as f:
         f.write(",%s" % k)
     f.write("\n")
     for (i,c,s,l,g,lm, sf) in zip(ids, charges, SAs, lengths, gaps, lambdaMatrix, scounts):
+        #write the other stuff
         f.write("%s,%s,%f,%d,%d" % (i,c,s,l,g))
+        #write the lambda terms
         for lv in lm:
             f.write(",%g" % lv)
+        #write the amino acid counts
         for k in psurf.AAs:
             f.write(",%d" % sf[k])
         f.write("\n")
