@@ -13,7 +13,7 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level,  It is linked to the "proteinFreeEnergyModel" script below 
-proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", contacts=fetchContacts(paste(dataset1, "_surface_contacts.csv",sep=""), username), countMatrix = FALSE, pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
+proteinEnergyCycle <- function(username, dataset1="ecoli40", dataset2="assist", contacts=fetchContacts(paste("ecoli", "_total_contacts.csv",sep=""), username), countMatrix = FALSE, pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
   if(countMatrix == FALSE) {
     countMatrix <- sampleContacts(contacts)
   }
@@ -83,6 +83,10 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
     }
   }
 
+  #Generate surface fraction for both datasets
+  surFrac <- sum(counts$csurf) / (sum(counts$csurf) + sum(counts$cburied))
+  surFracAssist <- sum(countsassist$csurfassist) / (sum(countsassist$csurfassist) + sum(countsassist$cburiedassist));
+
   #Generate ddG matrix
   ddGecoli <- matrix(0,length(pidsecoli),2)
   rownames(ddGecoli) <- pidsecoli
@@ -97,8 +101,8 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
     else {
       #Use the "proteinFreeEnergyModel" script to calculate ddG value for specific protein using either GroEL_open distribution or GroEL_close distribution.
       ener <- 0.
-#      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts, hydration=TRUE)
-      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts, hydration=TRUE)
+      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts, surFrac, hydration=TRUE)
+#      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts, surFrac, hydration=TRUE)
       ddGecoli[i,1] <- -ener
       cat(paste("\rProcessing DataSet1...", i,"/",length(pidsecoli)))
     }
@@ -114,8 +118,8 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
 
   for(i in 1:length(pidsassist)) {
     ener <- 0.
-#    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist, hydration=TRUE)
-    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist, hydration=TRUE)
+    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist, surFracAssist, hydration=TRUE)
+#    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist, surFracAssist, hydration=TRUE)
     ddGassist[i,1] <- -ener
     cat(paste("\rProcessing DataSet2...", i,"/",length(pidsassist)))
     ddGassist[i,2] <- sum(countsassist$cunfoldassist[pidsassist[i],])
@@ -130,9 +134,8 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist", co
 
 
 #The mean enegycycle code, worked for ecoli, assisted proteins, also used by the stochastic annealing code (Python).
-proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydration=FALSE) {
+proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,surFrac,hydration=FALSE) {
   if (hydration == TRUE) {
-    surFrac <- sum(counts$surf) / (sum(counts$surf) + sum(counts$buried))
     #process the contact matrix, making countMatrix, hydration, and contact.
     hydration <- array(0,ncol(countMatrix))
     contact <- array(0,ncol(countMatrix))
@@ -152,7 +155,7 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
     sigmaX <- array(0,2)
     #Calculation of ddG for individual protein
     sum <- 0.
-    for (i in 1:ncol(counts$csurf)) {
+    for (i in 1:ncol(pfracs$psurf)) {
       pxy <- 0.
       for (j in 1:length(yDist)) {
         t1 <- countMatrix[i,j] * yDist[j] * contact[j]
@@ -160,12 +163,12 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sigmaY <- log(pxy)
-      sum <- sum + as.double(counts$csurf[PDBID,i] * sigmaY)
+      sum <- sum + as.double(pfracs$psurf[PDBID,i] * sigmaY)
     }
     Xsurf <- sum * surFrac
 
     sum <- 0.
-    for (i in 1:ncol(counts$cburied)) {
+    for (i in 1:ncol(pfracs$pburied)) {
       pxy <- 0.
       for (j in 1:ncol(pfracs$pburied)) {
         t1 <- countMatrix[i,j] * pfracs$pburied[PDBID,j] * contact[j]
@@ -173,13 +176,13 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sigmaY <- log(pxy)
-      sum <- sum + as.double(counts$cburied[PDBID,i] * sigmaY)
+      sum <- sum + as.double(pfracs$pburied[PDBID,i] * sigmaY)
     }
-    Xburied <- sum * surFrac
+    Xburied <- sum * (1-surFrac)
     ener[1] <- Xsurf + Xburied
 
     sum <- 0.
-    for (i in 1:ncol(counts$cunfold)) {
+    for (i in 1:ncol(pfracs$punfold)) {
       pxy <- 0.
       for (j in 1:length(yDist)) {
         t1 <- countMatrix[i,j] * yDist[j] * contact[j]
@@ -187,9 +190,9 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
         pxy <- pxy + as.double(t1) + as.double(t2)
       }
       sigmaY <- log(pxy)
-      sum <- sum + as.double(counts$cunfold[PDBID,i] * sigmaY)
+      sum <- sum + as.double(pfracs$punfold[PDBID,i] * sigmaY)
     }
-    Xunfold <- sum * (1-surFrac)
+    Xunfold <- sum * surFrac
     ener[2] <- Xunfold
    
   } else {
@@ -246,7 +249,7 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,hydrati
 ##This part of the code is the calculation for ddG of all the E.Coli protein, available for incorprating lambdaf and lambdau
 energyCycle <- function(dataset, username=myUsername, countMatrix=FALSE, lambdaf=1, lambdau=1, split=FALSE) {
   if (countMatrix == FALSE) {
-    contacts <- fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username)
+    contacts <- fetchContacts(paste(dataset, "_total_contacts.csv",sep=""), username)
     countMatrix <- sampleContacts(contacts)
   }
 
@@ -828,7 +831,7 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-#ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 ##Bootstrap executing code linked to previous energycycle code
 #ddG_assist <- bootstrapEnergyCycle("assist",bootstrap=100, username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
@@ -851,7 +854,7 @@ cysFrac <- function(username, dataset1="ecoli", dataset2="assist") {
 #plotPS(x=surfCharge$ecoli[,1],y=data$ecoli[,1],xpoints=surfCharge$assist[,1],ypoints=data$assist[,1], xlab="netCharge",ylab="Hydrophobicity",plotName1="trial1", plotName2="trial2")
 
 ##Executing codes for the energy model that NOT USED any more
-ddG2 <- energyCycle("ecoli", username="wenjunh", split=TRUE)#,countMatrix=read.table('countMatrix.txt'))
+#ddG2 <- energyCycle("ecoli", username="wenjunh", split=TRUE)#,countMatrix=read.table('countMatrix.txt'))
 #energyBootstrap(1000, "ecoli", username="wenjunh")
 #minimizeEnergy("ecoli", "wenjunh")
 #gfold <- hydrationModel(countMatrix,groDist["GroEL_Open",])
@@ -995,22 +998,3 @@ energyBootstrap <- function(bootstrap,dataset,username=myUsername,
 }
 
 
-#This part of the code is for quick reference of the hydration model
-hydrationModel <- function(countMatrix, yDist) {
-  contact <- array(0,ncol(countMatrix))
-  hydration <- array(0,ncol(countMatrix))
-  for (l in 1:ncol(countMatrix)) {
-    hydration[l] <- countMatrix["WATER",l] / sum(countMatrix[c(1:20,which(rownames(countMatrix) == "WATER")),l]) * (1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]) + countMatrix["FREE",l] / countMatrix["TOTAL",l]
-  contact[l] <- 1. - countMatrix["FREE",l] / countMatrix["TOTAL",l]
-  }
-  names(hydration) <- colnames(countMatrix)
-  names(contact) <- colnames(countMatrix)
-  yDist <- yDist[match(colnames(countMatrix),names(yDist))]
-
-  g <- 0
-  for (i in 1:length(yDist)) {
-     g <- g + yDist[i] * log(hydration[i])
-   }
-
-  return (g)
-}
