@@ -392,33 +392,11 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,counts=NA,lambdaf,lambdau,s
 #load("pidsassist.txt")
 ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
-##Bootstrap executing code linked to previous energycycle code
-#ddG_assist <- bootstrapEnergyCycle("assist",bootstrap=100, username="wenjunh", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
-#save(ddG_assist, file="ddG_boots_assist.Rdata")
-#ddG_nonassist <- bootstrapEnergyCycle("nonassist",bootstrap=100, username="whitead", contacts=fetchContacts("ecoli_surface_contacts.csv", "wenjunh"))
-#save(ddG_nonassist, file="ddG_boots_nonassist.Rdata")
-#ddG
 #q(save="yes")
-
-##Below are the executing codes for various plots
-#normalPlot(ddG,"ddGquan")
-#plotPS(x=ddG$ecoli[,1],y=ddG$ecoli[,2],xpoints=ddG$assist[,1],ypoints=ddG$assist[,2], xlab="ddG",ylab="length",plotName1="trial1",plotName2="trial2")
-#ellipsoidPlot(ddG,"ellipsoid")
-#plotPS(x=data$ecoli[,1],y=data$ecoli[,2],xpoints=data$assist[,1],ypoints=data$assist[,2], xlab="phobicity",ylab="length",plotName1="trial1", plotName2="trial2")
-#data <- phobicity("wenjunh")
-#surfCharge <- netCharge("wenjunh")
-#cys <- cysFrac("wenjunh")
-#plotPS(x=surfCharge$ecoli[,1],y=surfCharge$ecoli[,2],xpoints=surfCharge$assist[,1],ypoints=surfCharge$assist[,2], xlab="netCharge",ylab="length",plotName1="trial1", plotName2="trial2")
-#normPlot(ddG$ecoli,ddG$assist,"trial")
-#plotPS(x=surfCharge$ecoli[,1],y=data$ecoli[,1],xpoints=surfCharge$assist[,1],ypoints=data$assist[,1], xlab="netCharge",ylab="Hydrophobicity",plotName1="trial1", plotName2="trial2")
 
 ##Executing codes for the energy model that NOT USED any more
 #ddG2 <- energyCycle("ecoli", username="wenjunh", split=TRUE)#,countMatrix=read.table('countMatrix.txt'))
-#energyBootstrap(1000, "ecoli", username="wenjunh")
-#minimizeEnergy("ecoli", "wenjunh")
-#gfold <- hydrationModel(countMatrix,groDist["GroEL_Open",])
-#gunfold <- hydrationModel(countMatrix,groDist["GroEL_Close",])
-#dG <- gfold-gunfold
+
 
 ##Used to output value for python code
 #contacts = fetchContacts("ecoli_surface_contacts.csv", "wenjunh")
