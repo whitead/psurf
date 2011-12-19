@@ -936,32 +936,4 @@ ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassi
 
 
 
-#This bootstrap is linked to the abor energycycle code, NOT USED as well
-bootstrapEnergyCycle <- function(dataset, bootstrap=500, username=myUsername, contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username), lambdaf=1, lambdau=1) {
-
-    countMatrix <- sampleContacts(contacts)
-    
-    cutoff <- 0.3
-    pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-    pids <- fetchPDBIDs(dataset, username)
-
-    cutoff <- -1.0
-    pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-
-    ddG <- empty.df(c("Close", "Open", "Diff"), 1:bootstrap)
-    cat("Bootstrapping\n")
-  for(i in 1:bootstrap) {
-    cat(paste("\rbootstrap:", i, "/", bootstrap))
-    pfracs <- list(pfracsfold[pids[sample(length(pids), replace=T)], ], pfracsunfold[pids[sample(length(pids), replace=T)], ])
-
-    ddG[i,"Close"] <- freeEnergyModel(countMatrix, groDist["GroEL_Close", ], pfracs, lambdaf, lambdau, split=FALSE)
-    ddG[i,"Open"] <- freeEnergyModel(countMatrix, groDist["GroEL_Open", ], pfracs, lambdaf, lambdau, split=FALSE)
-    ddG[i,"Diff"] <- ddG[i,"Close"] - ddG[i,"Open"]
-  }
-    cat("done\n")
-    return(ddG)
-}
-
-
-
 
