@@ -13,10 +13,10 @@ import math, re
 #8 occupancy
 #9 beta factor
                      #ATOM    atomnum     atom type             residue type     chain           residue number  x                  y                    z          occupancy   beta factor
-regexp = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,3})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([\d\.]{1,6})[\s]*([-\d\.]{1,6})[\s]*(.*)")
+regexp = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,4})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([\d\.]{1,6})[\s]*([-\d\.]{1,6})[\s]*(.*)")
 
 #added SA column
-regexpSA = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,3})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{1,5})[\s]*(-{0,1}[\d\.]{1,5})[\s]*([-\d\.]*)")
+regexpSA = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,4})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{1,5})[\s]*(-{0,1}[\d\.]{1,5})[\s]*([-\d\.]*)")
 
 regexpWater = re.compile(
 "HETATM([\d\s]{5})  O  .HOH [\w][\d\s]{4}.\s{3}([\d\.\s]{8})([-\d\.\s]{8})([-\d\.\s]{8}).*")
@@ -112,6 +112,10 @@ class Atom:
    def getCoord(self):
       return self.coord
 
+#Print out the formatted x,y,z coordinates
+   def printCoord(self):
+      return "%g %g %g" % (self.coord)
+
    def centerdistance(self, center):
       dist = 0
       for (x1,x2) in zip(self.coord, (center[0],center[1],center[2])):
@@ -124,13 +128,13 @@ class Residue:
        self.type = "X"
        self.parent = None
        self.hydrated = None
+       self.secStruct = 'NULL'
 
-   def fromData(self, atoms, rType, chain, resNum, secStruc):
-       self.type = rType
+   def fromData(self, atoms, rType, chain, resNum):
+       self.type = rType[-3:]
        self.atoms = atoms
        self.chain = chain
        self.index = resNum
-       self.secStruc = secStruc
 
    def __len__(self):
       return len(self.atoms)
@@ -185,8 +189,11 @@ class Residue:
             return True
       return False
 
-   def getsecStruct(self):
-      return self.secStruc
+   def getSecStruct(self):
+      return self.secStruct
+   
+   def setSecStruct(self, secStruct):
+      self.secStruct = secStruct
 
    def getAtoms(self):
       return self.atoms
@@ -375,6 +382,19 @@ class Protein:
         return la
               
 
+#this ouptputs a file of all the atom positions, defaults to only C-alpha
+    def writeXYZAtoms(self, filename, CAOnly=True):
+       lines = []
+       for r in self.residues:
+          for a in r.getAtoms():
+             if(not CAOnly or a.getType() == "CA"):
+                lines.append(a.printCoord())
+                lines.append("\n")
+       with open(filename, 'w') as f:
+          f.writelines(lines)
+             
+
+
     def writeCSVAtoms(self, filename, header=False):
        lines = []
        if(header):
@@ -409,7 +429,7 @@ class Protein:
     def writeCSVResidues(self, filename, header=False):
        lines = []
        if(header):
-          lines.append("pdb_id, res_index, res_type, res_type_sh, chain, res_surface_area, res_surface_area_ratio, phi, psi, second_Struct\n")
+          lines.append("pdb_id, res_index, res_type, res_type_sh, chain, res_surface_area, res_surface_area_ratio, phi, psi, structure\n")
 
        for i,r in zip(range(len(self.residues)), self.residues):
           lines.append(self.id)
@@ -437,7 +457,7 @@ class Protein:
                 lines[-1] += ",%6.4f" % (self._getPsi(i))
              except:
                 lines[-1] += ",NULL"
-          lines[-1] += "," + r.getsecStruct()
+          lines[-1] += "," + r.getSecStruct()
           lines[-1] += "\n"
 
        with open(filename, 'w') as f:
@@ -535,25 +555,32 @@ class sqMatrix:
     def setRow(self, row, array):
         self.matrix[row:(row + dim)] = array
 
-def readProteinDSSP(dsspfile, chain, resNum):
+def readDSSP(dsspfile, protein):
 
     with open(dsspfile, "r") as f: #open the file
        for line in f.readlines():
           try:
-             temp = float(line[125:129])
+             chain = line[10:12].strip()
+             resNum = int(line[5:11])
+             secStruct = line[16]
+             if(secStruct == " "):
+                secStruct = 'C'
+             res = protein.getResidue(resNum, chain)
+             if(res == None):
+                print "Warning: Could not find residue %d in chain %s in %s on line:" % (resNum, chain, dsspfile)
+                print line
+             else:
+                res.setSecStruct(secStruct)
           except ValueError:
              pass
-          else:
-             if (line[11] == chain and int(line[7:10]) == resNum) :
-                if (line[16] == " "):
-                   out = 'C'
-                else:
-                   out = line[16]
-             else:
-                pass
-    return out
 
-def readProtein(pdbfile):
+
+def readProtein(pdbfile, dsspfile):
+   p = readProtein(pdbfile)
+   readProteinDSSP(dsspfile, p)
+   return p
+
+def readProtein(pdbfile, dsspfile=""):
 
     prot = Protein()
     prot.setType(pdbfile.split("/")[-1].split(".")[0])
@@ -571,12 +598,7 @@ def readProtein(pdbfile):
                 if(proteinnum[0] != proteinnum[1]):  #check residue number              
                     currentR = Residue()               #initialize a new residue
                     proteinnum[1] = proteinnum[0]        #assign new residue number
-                    pdbDSSP = "%s%s" %(pdbfile[0:4],".dssp")
-                    try:
-                       secStruc = readProteinDSSP(pdbDSSP,m.group(4), int(m.group(5)))
-                    except IOError:
-                       secStruc = 'NA'
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)), secStruc)  #initialization
+                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
                     prot.addResidue(currentR)              #add new residue to protein
 
             
@@ -592,6 +614,8 @@ def readProtein(pdbfile):
                   atomw.fromData((float(m.group(2)), float(m.group(3)), float(m.group(4))), 'HOH', -1, 0, 0)
                   prot.addWater(atomw)
 
+    if(dsspfile != ""):
+       readDSSP(dsspfile, prot)
     return prot
 
 def readProteinSeq(pdbfile):
@@ -607,7 +631,7 @@ def readProteinSeq(pdbfile):
     return prot           
 
 
-def readProteinSA(pdbfile):
+def readProteinSA(pdbfile, dsspfile=""):
 
     prot = Protein()
     prot.setType(pdbfile.split("/")[-1].split(".")[0])
@@ -625,12 +649,7 @@ def readProteinSA(pdbfile):
                 if(proteinnum[0] != proteinnum[1]):  #check residue number              
                     currentR = Residue()               #initialize a new residue
                     proteinnum[1] = proteinnum[0]        #assign new residue number
-                    pdbDSSP = "%s%s" %(pdbfile[0:4],".dssp")
-                    try:
-                       secStruc = readProteinDSSP(pdbDSSP,m.group(4), int(m.group(5)))
-                    except IOError:
-                       secStruc = 'NA'
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)), secStruc)  #initialization
+                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
                     prot.addResidue(currentR)              #add new residue to protein
 
             
@@ -652,6 +671,9 @@ def readProteinSA(pdbfile):
                   atomw = Atom()
                   atomw.fromData((float(m.group(2)), float(m.group(3)), float(m.group(4))), 'HOH', -1, 0, 0)
                   prot.addWater(atomw)
+
+    if(dsspfile != ""):
+       readDSSP(dsspfile, prot)
 
     return prot
 
@@ -681,11 +703,12 @@ def convRID(r):
       if r in conversion:
          return conversion[r]
       else:
-         return "Z"
+         return "X"
    else:
       for k,v in conversion.items():
          if(v == r):
             return k
+      return "UNK"
    return None
 
 def chiNumber(resType):
