@@ -965,36 +965,3 @@ bootstrapEnergyCycle <- function(dataset, bootstrap=500, username=myUsername, co
 
 
 
-
-energyBootstrap <- function(bootstrap,dataset,username=myUsername,
-                            contacts=fetchContacts(paste(dataset, "_surface_contacts.csv",sep=""), username=username)) {
-
-  #  obtain surface residues for both E.Coli fold and E.Coli unfold
-  cutoff <- 0.3
-  pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-  pidsfold <- fetchPDBIDs(dataset, username)
-
-  cutoff <- -1.0
-  pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-  pidsunfold <- fetchPDBIDs(dataset, username)
-
-
-  pfracs <- list(pfracsfold, pfracsunfold)
-
-  Gclose <- matrix(0,nrow=bootstrap,ncol=2)
-  colnames(Gclose) <- c("deltaGln","deltaG")
-  Gopen <- matrix(0,nrow=bootstrap,ncol=2)
-  colnames(Gopen) <- c("deltaGln","deltaG")
-  ener <- list(Gclose,Gopen)
-  names(ener) <- c("Gclose","Gopen")
-  for (i in 1:bootstrap) {    
-    countMatrix <- sampleContacts(contacts)
-    for (distNum in 1:2) {
-      ener[[distNum]][i,] <- freeEnergyModel(countMatrix, groDist[distNum,], pfracs)
-    }
-    cat(paste(i,"/",bootstrap))
-  }
-  return(ener)
-}
-
-
