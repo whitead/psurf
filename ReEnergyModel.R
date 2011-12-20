@@ -14,6 +14,7 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 ##This is the main code in this script for free energy model at 903 individual protein level,  It is linked to the "proteinFreeEnergyModel" script below 
 proteinEnergyCycle <- function(username, dataset1="ecoli40", dataset2="assist", contacts=fetchContacts(paste("ecoli", "_total_contacts.csv",sep=""), username), countMatrix = FALSE, pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
+  lambdalist <- fetchGyration(dataset1, username)
   if(countMatrix == FALSE) {
     countMatrix <- sampleContacts(contacts)
   }
@@ -248,6 +249,7 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,surFrac
 
 ##This part of the code is the calculation for ddG of all the E.Coli protein, available for incorprating lambdaf and lambdau
 energyCycle <- function(dataset, username=myUsername, countMatrix=FALSE, lambdaf=1, lambdau=1, split=FALSE) {
+  
   if (countMatrix == FALSE) {
     contacts <- fetchContacts(paste(dataset, "_total_contacts.csv",sep=""), username)
     countMatrix <- sampleContacts(contacts)
@@ -372,7 +374,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,counts=NA,lambdaf,lambdau,s
 
 
 #Below are used for actuall program running
-#ddG <- energyCycle("ecoli","wenjunh",split=TRUE)    
+#ddG <- energyCycle("ecoli40","wenjunh",split=TRUE)    
 
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
