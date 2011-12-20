@@ -74,7 +74,8 @@ getGyrationRadius <- function(dataset, username) {
   #Get Rg
   Nv <- 0.6
   l <- 2.5    #based on estimation, subject to change in the future
-  N <- fetchResNum(dataset, username)
+#  N <- fetchResNum(dataset, username)
+  N <- matrix(c(1))
   
   Rg <- matrix(0,nrow(N),1)
   rownames(Rg) <- rownames(N)
@@ -137,7 +138,7 @@ getAreaofContact <- function(gyration,dataset,username) {
   
 
 #get the interaction energies between residue types
-getInteractionEnergys <- function(dataset, username=NULL) {
+getInteractionEnergys <- function(dataset, username=NULL, glycine=FALSE) {
 
   dataset <- paste(paste(dataset,"surface","contacts", sep="_"), "csv" ,sep=".")
  
@@ -151,19 +152,53 @@ getInteractionEnergys <- function(dataset, username=NULL) {
 
   #re-order it
   anames <- colnames(countMatrix[-c(1,2)])
+  aanum <- length(anames)
   anames.ord <- order(anames)
 
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
 
   #sum it
   contactMatrix <- sampleContacts(countMatrix, random=FALSE)
+  contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
+  rownames(contactMatrix) <- c(sort(rownames(contactMatrix)[1:aanum]), rownames(contactMatrix)[-(1:aanum)])
+  contactMatrix[1:aanum, 1:aanum] <- contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])
 
-  contactMatrix <- contactMatrix[order(rownames(contactMatrix)[1:20]),]
 
-  #normalize it
-  mat <- t(apply(contactMatrix, MARGIN=1, FUN=function(x){ x / sum(x)}))
 
+  
+  #normalize it to the effects remove amounts of each amino acid
+  #add the effect of the free residues
+  for(i in 1:aanum) {
+    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] / sum(contactMatrix[1:aanum, i])
+    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] * (1 - contactMatrix["FREE", i] / contactMatrix["TOTAL", i])
+    contactMatrix["FREE", i] <- contactMatrix["FREE", i] / contactMatrix["TOTAL", i]
+  }
+
+  
+
+  #normalize it so all events sum to 1
+  normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
+  contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
+  
+  print(contactMatrix)
+  #make it relative to being a free residue
+  mat <- matrix(rep(0, aanum**2), nrow=aanum)
+  rownames(mat) <- sort(anames)
+  colnames(mat) <- sort(anames)
+  for(i in 1:aanum) {
+    for(j in 1:aanum) {
+      mat[i,j] <- contactMatrix[i,j] * contactMatrix[j,i] / (contactMatrix["FREE",i] * contactMatrix["FREE", j])
+    }
+  }
+  
   mat <- -log(mat)
+
+  #make glycine 0, if wanted
+  if(!glycine) {
+    mat["GLY", ] <- 0
+    mat[,"GLY"] <- 0
+  }
+  
   return(mat)
 }
 
@@ -198,7 +233,7 @@ getEnergyforUnfoldProtein <- function(PDBID,punfold,groDist,Xmatrix,thetaF,gyrat
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+#ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 #q(save="yes")
 
