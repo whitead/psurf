@@ -290,43 +290,30 @@ energyCycle <- function(dataset, username=myUsername, countMatrix=FALSE, lambdaf
 
   #  obtain surface residues for both E.Coli fold and E.Coli unfold
   cat("Fetching Data ...")
-  if (split == FALSE) {
-    cutoff <- 0.3
-    pfracsfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-    pidsfold <- fetchPDBIDs(dataset, username)
-
-    cutoff <- -1.0
-    pfracsunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
-    pidsunfold <- fetchPDBIDs(dataset, username)
-
-    pfracs <- list(pfracsfold, pfracsunfold)
-
-  } else {
     
-    cutoff <- 0.3
-    countsurf <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
-    pidsfold <- fetchPDBIDs(dataset, username)
+  cutoff <- 0.3
+  countsurf <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+  pidsfold <- fetchPDBIDs(dataset, username)
 
-    cutoff <- -1.0
-    countunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
-    pidsunfold <- fetchPDBIDs(dataset, username)
+  cutoff <- -1.0
+  countunfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+  pidsunfold <- fetchPDBIDs(dataset, username)
 
-    countburied <- countunfold - countsurf
-    surfrac <- sum(countsurf) / (sum(countsurf) + sum(countburied))
+  countburied <- countunfold - countsurf
+  surfrac <- sum(countsurf) / (sum(countsurf) + sum(countburied))
 
-    counts <- list(countsurf, countburied, countunfold)
-    names(counts) <- c("csurf","cburied","cunfold")
-    for (i in 1:3) {
-      counts[[i]] <- counts[[i]][match(colnames(countMatrix),names(counts[[i]]))]
-    }
-    pfracs <- counts
-    names(pfracs) <- c("psurf","pburied","punfold")
+  counts <- list(countsurf, countburied, countunfold)
+  names(counts) <- c("csurf","cburied","cunfold")
+  for (i in 1:3) {
+    counts[[i]] <- counts[[i]][match(colnames(countMatrix),names(counts[[i]]))]
+  }
+  pfracs <- counts
+  names(pfracs) <- c("psurf","pburied","punfold")
     
     
-    for (i in 1:3) {
-      for (j in 1:nrow(pfracs[[i]])) {
-        pfracs[[i]][j,] <- pfracs[[i]][j,] / sum(pfracs[[i]][j,])
-      }
+  for (i in 1:3) {
+    for (j in 1:nrow(pfracs[[i]])) {
+      pfracs[[i]][j,] <- pfracs[[i]][j,] / sum(pfracs[[i]][j,])
     }
   }
 

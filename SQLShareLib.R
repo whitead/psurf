@@ -91,6 +91,7 @@ fetchPDBIDs <- function(dataset, username=myUsername) {
 
   sql = paste("select pdb_id FROM [", username, "@washington.edu].[",dataset,"_1.csv]",sep="")
   idlist <- fetchdata(sql)
+  print(idlist)
   #minus one to skip the column headers
   ids <- rep("", length(idlist[[1]]) - 1)
   for(i in 2:length(idlist[[1]])) {
@@ -150,7 +151,6 @@ fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=myUs
     sql = paste("SELECT pdb_id, res_type FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
       " AND res_surface_area_ratio IS NOT NULL AND structure = \'", secStruct ,"\'", sep="")
   }
-
   rlist <- fetchdata(sql)
 
   sql = paste("SELECT DISTINCT pdb_id FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
@@ -277,7 +277,6 @@ fetchAllResiduePairs <- function(dataset, pdbIDs=fetchPDBIDs(dataset), symm=TRUE
 
 
   sql = paste("SELECT * FROM [whitead@washington.edu].[",dataset,"_pairs]" ,sep="")
-  print(sql)
   rlist <- fetchdata(sql)
   pairlist <- vector(mode="list", length=length(pdbIDs))
   index <- 0
@@ -331,6 +330,29 @@ getSurfFrac <- function(dataset, cutoff, pdbid, username=myUsername) {
   }
   fracs <- fracs / sum(fracs)
   return(fracs)
+}
+
+#Get the gyration parameter for each protein
+fetchGyration <- function(dataset, username=FALSE, gapTol=0) {
+  if (username == FALSE) {
+    username = myUsername
+  }
+  sql = paste("SELECT pdb_id, lambda_x, lambda_y, lambda_z FROM [", username, "@washington.edu].[",dataset, "_1.csv]", sep="")
+  lambdalist <- fetchdata(sql)
+  print(length(lambdalist[[1]]))
+  
+  pdbids <- array("", length(lambdalist[[1]]) - 1)
+  for(i in 2:length(lambdalist[[1]])) {
+    pdbids[i - 1] <- lambdalist[[1]][[i]][1]
+  }
+  
+  data <- empty.df(c("lambda_x","lambda_y","lambda_z"), pdbids)
+  for(j in 2:length(lambdalist[[1]])) {
+    for(k in 2:4) {
+      data[j-1, k-1] <- lambdalist[[1]][[j]][k]
+    }
+  }
+  return(data)
 }
 
 #Add error bars to a bargraph
