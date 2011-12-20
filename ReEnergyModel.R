@@ -2,6 +2,8 @@ library(alabama)
 library(KernSmooth)
 source("SQLShareLib.R")
 
+surfCutoff <- 0.3
+
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
 rawData <- fetchdata(sql)
@@ -14,9 +16,9 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
 proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
-  surfRough <- 3
-  charaLength <- 40000    #These numbers are subject to change
-  thetaF <- 1             #Need a method/detail to get this number (for ennergy calcualtion)    
+  kuhnLength <- 1.83
+  surfRough <- 3.5
+  charaLength <- 60000    #These numbers are subject to change
   confineExp <- 3.25
   
   gyration <- getGyrationRadius(dataset1, username)
@@ -28,10 +30,12 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
 
   Xmatrix <- getInteractionEnergys(dataset1, username)
 
+  surfDensities <- getSurfaceDensities(dataset1, username)
+
   
   cat("Fetching Data...")
   
-  cutoff <- 0.3  #Set the surface cutoff
+  cutoff <- surfCutoff  #Set the surface cutoff
   psurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=TRUE, username)
   psurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=TRUE, username)
   
@@ -136,6 +140,25 @@ getAreaofContact <- function(gyration,dataset,username) {
   return(a)
 }
   
+
+#calucate the surface density for all proteins in a given dataset
+getSurfaceDensities <- function(dataset, username=NULL) {
+
+  surfResidues <- fetchAllSurfResidues(dataset, cutoff, username=username, normalize=FALSE)
+  if(is.null(username)) {
+    chargeAndSA <- fetchChargeAndSA(dataset, username)
+  } else {
+    chargeAndSA <- fetchChargeAndSA(dataset, username)
+  }
+
+  densities <- rep(0, nrow(surfResidues))
+  names(densities) <- rownames(surfResidues)
+  for(i in 1:length(densities)) {
+    densities[i] <- sum(surfResidues[i,]) / chargeAndSA$surface_area[i]
+  }
+
+  return(densities)
+}
 
 #get the interaction energies between residue types
 getInteractionEnergys <- function(dataset, username=NULL, glycine=FALSE) {
