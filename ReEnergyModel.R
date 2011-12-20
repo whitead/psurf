@@ -3,6 +3,12 @@ library(KernSmooth)
 source("SQLShareLib.R")
 
 surfCutoff <- 0.3
+kuhnLength <- 1.83
+surfaceRoughness <- 3.5
+sawExponent <- 3/5.
+confinementExponent <- 3.25
+charaLength <- 60000    #These numbers are subject to change
+
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
 sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
@@ -16,19 +22,15 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
 proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
-  kuhnLength <- 1.83
-  surfRough <- 3.5
-  charaLength <- 60000    #These numbers are subject to change
-  confineExp <- 3.25
   
-  gyration <- getGyrationRadius(dataset1, username)
+  gyration <- getGyrationRadii(dataset1, username)
   print(gyration[300,])
 
-  Tao <- getContactFractionTime(gyration, surfRough, charaLength)
+  timeFraction <- getContactFractionTime(gyration, surfRough, charaLength)
 
-  lambda <- getAreaofContact(gyration, dataset1, username)
+  contactArea <- getContactArea(gyration, dataset1, username)
 
-  Xmatrix <- getInteractionEnergys(dataset1, username)
+  interactionMatrix <- getInteractionEnergy(dataset1, username)
 
   surfDensities <- getSurfaceDensities(dataset1, username)
 
@@ -48,23 +50,31 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
   #Generate ddG matrix
   cat("Processing DataSet...")
 
-  energy <- matrix(0,nrow(gyration),2)
-  rownames(energy) <- rownames(psurf)
-  colnames(energy) <- c("Efold","Eunfold")
-
+  energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
+  
   for(i in 1:nrow(psurf)) {
+    
     PDBID <- rownames(psurf)[i]
-    energy[i,"Efold"] <- getEnergyforFoldProtein(PDBID,psurf,groDist["GroEL_Close",],Xmatrix,thetaF)
-    energy[i,"Eunfold"] <- getEnergyforUnfoldProtein(PDBID,punfold,groDist["GroEL_Close",],Xmatrix,thetaF,gyration)
+    
+    energy[i,"Efold"] <-
+      getContactEnergy(psurf[PDBID,],
+                       groDis["GroEL_Close",],
+                       interactionMatrix,
+                       surfDensity[PDBID])
+    
+    energy[i,"Eunfold"] <-
+      getContactEnergy(punfold[PDBID, ],
+                       groDist["GroEL_Close",],
+                       interactionMatrix,
+                       surfDensity[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
   }
 
   #calculate the final DDG matrix
-  ddG <- matrix(0,nrow(energy),1)
-  rownames(ddG) <- rownames(energy)
-  colnames <- "ddG"
+  ddG <- rep(0, nrow(energy))
+  names(ddG) <- rownames(energy)
 
-  for (i in 1:nrow(ddG)) {
-    ddG[i,1] <-  Tao[i,2] * lambda[i,2] * energy[i,2] - Tao[i,1] * lambda[i,1] * energy[i,1] - (gyration[i,1] / charaLength)^confineExp
+  for (i in 1:length(ddG)) {
+    ddG[i] <-  timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] - timeFraction[i,"Tu"] * contactArea[i,"Af"] * energy[i,"Efold"] - (gyration[i,"Rg"] / charaLength)^confinementExponenet
   }
 
 
@@ -73,71 +83,56 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
  
 
 #get the general gyration radius (Rg = N^nv*l) (Rf = sqrt(lambda_x^2+lambda_y^2+lambda_z^2))
-getGyrationRadius <- function(dataset, username) {
+getGyrationRadii <- function(dataset, username) {
 
-  #Get Rg
-  Nv <- 0.6
-  l <- 2.5    #based on estimation, subject to change in the future
-#  N <- fetchResNum(dataset, username)
-  N <- matrix(c(1))
-  
-  Rg <- matrix(0,nrow(N),1)
-  rownames(Rg) <- rownames(N)
-  
-  for (i in 1:nrow(N)) {
-    Rg[i,1] <- (as.numeric(N[i,1])^Nv)*l
-  }
- 
-  #Get Rf
+  #get data from SQLShare
+  resNumbers <- fetchResNum(dataset, username)
+  #get principal components
   lambda <- fetchGyration(dataset,username)
-
-  Rf <- matrix(0,nrow(lambda),1)
-  rownames(Rf) <-  rownames(lambda)
+  #make data frame with two columns
+  gyrationRadii <- empty.df(cnames=c("Rf", "Rg", "lambda.x", "lambda.y", "lambda.z"), rnames=rownames(resNumbers))
   
-  for (i in 1:nrow(lambda)) {
-    Rf[i,1] <- sqrt(as.numeric(lambda[i,1])^2+as.numeric(lambda[i,2])^2+as.numeric(lambda[i,3])^2)
+  for (i in 1:nrow(gyrationRadii)) {
+    gyrationRadii[i, "Rg"] <- (as.numeric(N[i,1])^sawExponent)*kuhnLength #equation for Rg
+    #convert the principal components into numbers
+    grationRadii[i, 3:5] <- sapply(as.numeric, lambda[i,])
+    #calculate the empirical radius of gyration from the PCs.
+    gyrationRadii[i, "Rf"] <- sqrt(sum(gyrationRadii[i, 3:5]^2))
+
   }
 
-  #Put Rf, Rg into one matrix
-  data <- empty.df(c("Rg","Rf"), rownames(lambda))
-  for (i in 1:nrow(lambda)) {
-    data[i,1] <- N[i,1]
-    data[i,2] <- Rf[i,1]
-  }
-
-  return(data)
+  return(gyrationRadii)
 }
 
 #Get the Tao value for both fold and unfolded states
 getContactFractionTime <- function(gyration, surfRough, charaLength){
-  Tao <- matrix(0,nrow(gyration),ncol(gyration))
-  rownames(Tao) <- rownames(gyration)
-  colnames(Tao) <- c("Tf","Tu")
-
+  Tao <- empty.df(rnames=rownames(gyration), cnames=c("Tf", "Tu"))
+  
   for (i in 1:nrow(Tao)) {
-      Tao[i,1] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,1])))^3
-      Tao[i,2] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,2])))^3
+      Tao[i,"Tf"] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,"Rg"])))^3
+      Tao[i,"Tu"] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,"Rf"])))^3
     }
 
   return(Tao)
 }
 
 #get the Area of Contact for both fold and unfolded state
-getAreaofContact <- function(gyration,dataset,username) {
-  #acquire gyration info
-  lambda <- fetchGyration(dataset,username)
+getContactArea <- function(gyration,dataset,username) {
 
-  a <- matrix(0,nrow(gyration),2)
-  rownames(a) <- rownames(gyration)
-  colnames(a) <- c("af","au")
-
-  for (i in 1:nrow(a)) {
-    a[i,1] <- (0.5*(as.numeric(lambda[i,"lambda_y"])^2+as.numeric(lambda[i,"lambda_z"])^2) - as.numeric(lambda[i,"lambda_x"])^2) / as.numeric(gyration[i,"Rf"])
-#    a[i,1] <- a[i,1] * (4*pi*as.numeric(gyration[i,"Rf"])^2)
-    a[i,2] <- 2 * pi * as.numeric(gyration[i,"Rg"])^2
-  }
+  #get empirical areas
+  surfaceAreas <- fetchChargeAndSA(dataset, username)$surface_area
+  areas <- empty.df(rnames=rownames(gyration), cnames=c("Af", "Au"))
   
-  return(a)
+  for (i in 1:nrow(shapeParameter)) {
+    #calculate the shape parameter, similar to asphericity.x
+    a <- (0.5 * (gyration[i, "lambda.x"] ^ 2 + gyration[i, "lambda.y"] ^ 2)
+                               - gyration[i, "lambda.z"] ^ 2) / gyration[i, "Rf"]
+    areas[i,"Af"] <- a * surfaceAreas[i]
+    areas[i, "Au"] <- 0.5 * 4 * pi * gyration[i, "Rg"] ^ 2 #see equation in paper
+  }
+
+  
+  return(shapeParameter)
 }
   
 
@@ -161,7 +156,7 @@ getSurfaceDensities <- function(dataset, username=NULL) {
 }
 
 #get the interaction energies between residue types
-getInteractionEnergys <- function(dataset, username=NULL, glycine=FALSE) {
+getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   dataset <- paste(paste(dataset,"surface","contacts", sep="_"), "csv" ,sep=".")
  
@@ -226,28 +221,17 @@ getInteractionEnergys <- function(dataset, username=NULL, glycine=FALSE) {
 }
 
 #Function to calculate the energy for folded protein
-getEnergyforFoldProtein <- function(PDBID,psurf,groDist,Xmatrix,thetaF) {
+getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) {
   sum <- 0
   for (i in 1:20) {
     for (j in 1:20) {
-      sum <- sum + psurf[PDBID,i] * Xmatrix[colnames(psurf)[i],colnames(groDist)[j]] * groDist[j]
+      sum <- sum + proteinDist[i] * interactionMatrix[colnames(proteinDist)[i],colnames(groDist)[j]] * groDist[j]
     }
   }
-  sum <- sum * thetaF
+  sum <- sum * surfDensity
   return(sum)
 }
 
-#Function to calculate the energy for unfolded protein
-getEnergyforUnfoldProtein <- function(PDBID,punfold,groDist,Xmatrix,thetaF,gyration) {
-  sum <- 0
-  for (i in 1:20) {
-    for (j in 1:20) {
-      sum <- sum + punfold[PDBID,i] * Xmatrix[colnames(punfold)[i],colnames(groDist)[j]] * groDist[j]
-    }
-  }
-  sum <- sum * as.numeric(gyration[PDBID,"Rf"])^3 / as.numeric(gyration[PDBID,"Rg"])^3 * thetaF
-  return(sum)
-}
 
 
 #Below are used for actuall program running
