@@ -134,6 +134,41 @@ proteinEnergyCycle <- function(username, dataset1="ecoli40", dataset2="assist", 
 }
 
 
+
+#get the interaction energies between residue types
+getInteractionEnergys <- function(dataset, username=NULL) {
+
+  dataset <- paste(paste(dataset,"surface","contacts", sep="_"), "csv" ,sep=".")
+ 
+  #get the data
+  if(is.null(username)) {
+    countMatrix <- fetchContacts(dataset)
+  }
+  else{
+    countMatrix <- fetchContacts(dataset, username)
+  }
+
+  #re-order it
+  anames <- colnames(countMatrix[-c(1,2)])
+  anames.ord <- order(anames)
+
+  countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
+
+  #sum it
+  contactMatrix <- sampleContacts(countMatrix, random=FALSE)
+
+  contactMatrix <- contactMatrix[order(rownames(contactMatrix)[1:20]),]
+
+  #normalize it
+  mat <- t(apply(contactMatrix, MARGIN=1, FUN=function(x){ x / sum(x)}))
+
+  print(mat)
+  print(sum(mat[1,]))
+
+  mat <- -log(mat)
+  return(mat)
+}
+
 #The mean enegycycle code, worked for ecoli, assisted proteins, also used by the stochastic annealing code (Python).
 proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,surFrac,hydration=FALSE) {
   if (hydration == TRUE) {
@@ -379,7 +414,7 @@ freeEnergyModel <- function(countMatrix,yDist,pfracs,counts=NA,lambdaf,lambdau,s
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+#ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 #q(save="yes")
 
