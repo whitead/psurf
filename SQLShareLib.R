@@ -381,7 +381,7 @@ fetchGyration <- function(dataset, username=FALSE, gapTol=0) {
   data <- empty.df(c("lambda_x","lambda_y","lambda_z"), pdbids)
   for(j in 2:length(lambdalist[[1]])) {
     for(k in 2:4) {
-      data[j-1, k-1] <- lambdalist[[1]][[j]][k]
+      data[j-1, k-1] <- as.numeric(lambdalist[[1]][[j]][k])
     }
   }
   return(data)
