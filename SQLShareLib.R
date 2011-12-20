@@ -124,10 +124,7 @@ fetchLengths <- function(dataset, username=FALSE) {
 }
 
 #Get the charge and surface areas for each PDB in the given dataset
-fetchChargeAndSA <- function(dataset, username=FALSE) {
-  if (username == FALSE) {
-    username = myUsername
-  }
+fetchChargeAndSA <- function(dataset, username=myUsername) {
 
   sql = paste("select charge,surface_area FROM [", username, "@washington.edu].[",dataset,"_1.csv] WHERE charge IS NOT NULL",sep="")
   sqlList <- fetchdata(sql)
