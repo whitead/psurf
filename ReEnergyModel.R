@@ -26,7 +26,7 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
   gyration <- getGyrationRadii(dataset1, username)
   print(gyration[300,])
 
-  timeFraction <- getContactFractionTime(gyration, surfRough, charaLength)
+  timeFraction <- getContactFractionTime(gyration, surfaceRoughness, charaLength)
 
   contactArea <- getContactArea(gyration, dataset1, username)
 
@@ -58,15 +58,15 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
     
     energy[i,"Efold"] <-
       getContactEnergy(psurf[PDBID,],
-                       groDis["GroEL_Close",],
+                       groDist["GroEL_Close",],
                        interactionMatrix,
-                       surfDensity[PDBID])
+                       surfDensities[PDBID])
     
     energy[i,"Eunfold"] <-
       getContactEnergy(punfold[PDBID, ],
                        groDist["GroEL_Close",],
                        interactionMatrix,
-                       surfDensity[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
+                       surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
   }
 
   #calculate the final DDG matrix
@@ -90,12 +90,12 @@ getGyrationRadii <- function(dataset, username) {
   #get principal components
   lambda <- fetchGyration(dataset,username)
   #make data frame with two columns
-  gyrationRadii <- empty.df(cnames=c("Rf", "Rg", "lambda.x", "lambda.y", "lambda.z"), rnames=rownames(resNumbers))
+  gyrationRadii <- empty.df(cnames=c("Rf", "Rg", "lambda.x", "lambda.y", "lambda.z"), rnames=rownames(lambda))
   
   for (i in 1:nrow(gyrationRadii)) {
-    gyrationRadii[i, "Rg"] <- (as.numeric(N[i,1])^sawExponent)*kuhnLength #equation for Rg
+    gyrationRadii[i, "Rg"] <- (resNumbers[i]^sawExponent)*kuhnLength #equation for Rg
     #convert the principal components into numbers
-    grationRadii[i, 3:5] <- sapply(as.numeric, lambda[i,])
+    gyrationRadii[i, 3:5] <- sapply(lambda[i,], sqrt)
     #calculate the empirical radius of gyration from the PCs.
     gyrationRadii[i, "Rf"] <- sqrt(sum(gyrationRadii[i, 3:5]^2))
 
@@ -123,7 +123,7 @@ getContactArea <- function(gyration,dataset,username) {
   surfaceAreas <- fetchChargeAndSA(dataset, username)$surface_area
   areas <- empty.df(rnames=rownames(gyration), cnames=c("Af", "Au"))
   
-  for (i in 1:nrow(shapeParameter)) {
+  for (i in 1:nrow(areas)) {
     #calculate the shape parameter, similar to asphericity.x
     a <- (0.5 * (gyration[i, "lambda.x"] ^ 2 + gyration[i, "lambda.y"] ^ 2)
                                - gyration[i, "lambda.z"] ^ 2) / gyration[i, "Rf"]
@@ -132,7 +132,7 @@ getContactArea <- function(gyration,dataset,username) {
   }
 
   
-  return(shapeParameter)
+  return(areas)
 }
   
 
@@ -198,7 +198,6 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
   contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
   
-  print(contactMatrix)
   #make it relative to being a free residue
   mat <- matrix(rep(0, aanum**2), nrow=aanum)
   rownames(mat) <- sort(anames)
@@ -240,7 +239,7 @@ getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) 
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-#ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 #q(save="yes")
 

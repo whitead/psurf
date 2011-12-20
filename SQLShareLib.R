@@ -401,9 +401,10 @@ fetchResNum <- function(dataset, username=FALSE) {
     pdbids[i - 1] <- resNumlist[[1]][[i]][1]
   }
 
-  data <- empty.df("res_Num",pdbids)
+  data <- rep(0,length(pdbids))
+  names(data) <- pdbids
   for(j in 2:length(resNumlist[[1]])) {
-    data[j-1, 1] <- resNumlist[[1]][[j]][2]
+    data[j-1] <- as.numeric(resNumlist[[1]][[j]][2])
   }
 
   return(data)
