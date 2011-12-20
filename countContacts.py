@@ -6,7 +6,7 @@ if(len(sys.argv) != 6):
     print "Usage: [countSurfacecontacts.py] [surf_id list] [output] [cutoff] [ionic only] [include backbone]"
     exit()
 
-surfCutoff = float(sys.argv[3])
+setSurfCutoff(float(sys.argv[3]))
 ionicOnly = False
 if(sys.argv[4] in ['T', 't', 'True', 'true']):
     ionicOnly = True
@@ -74,7 +74,7 @@ for i in pdbIDs:
     clearCounts()
     p = readProteinSA(i)
     print i,
-    for r1 in range(len(p)):
+    for r1 in range(len(p)):	
         res1 = p.residues[r1]
         if(res1.isSurf() or res1.isHydrated()):
             contact = False
@@ -91,7 +91,7 @@ for i in pdbIDs:
             if(not contact):
                 incrementCount("FREE", res1.getType())
             incrementCount("TOTAL", res1.getType())
-        print "\r%d/%d" % (r1, len(p)),
+        print "\r%d/%d" % (r1+1, len(p)),
     print ""
 
     for j in range(len(counts)):
@@ -101,7 +101,7 @@ for i in pdbIDs:
         elif(j == len(AAs)):
             output.append("%-8s, " % "WATER")
         elif(j == len(AAs) + 1):
-            output.append("%-8s " % "HYDRATED")
+            output.append("%-8s, " % "HYDRATED")
         elif(j == len(AAs) + 2):
             output.append("%-8s, " % "FREE")
         else:
