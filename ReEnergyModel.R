@@ -12,128 +12,129 @@ groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
 
 
-##This is the main code in this script for free energy model at 903 individual protein level,  It is linked to the "proteinFreeEnergyModel" script below 
-proteinEnergyCycle <- function(username, dataset1="ecoli40", dataset2="assist", contacts=fetchContacts(paste("ecoli", "_total_contacts.csv",sep=""), username), countMatrix = FALSE, pidsecoli=NULL, pidsassist=NULL, sample=FALSE) {
-  lambdalist <- fetchGyration(dataset1, username)
-  if(countMatrix == FALSE) {
-    countMatrix <- sampleContacts(contacts)
-  }
-  #Draw contact matrix from the SQLShare if no matrix is specified
+##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
+proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
+  surfRough <- 3
+  charaLength <- 40000    #These numbers are subject to change
+  thetaF <- 1             #Need a method/detail to get this number (for ennergy calcualtion)    
+  confineExp <- 3.25
   
-  #obtain surface residues for both E.Coli fold and E.Coli unfold
-  if(sample == FALSE) {
-    pidsecoli <- fetchPDBIDs(dataset1, username)
-    pidsassist <- fetchPDBIDs(dataset2, username)
-  } else {
-    if(is.null(pidsecoli) & is.null(pidsassist)) {
-      pidsecoli <- fetchPDBIDs(dataset1, username)
-      pidsassist <- fetchPDBIDs(dataset2, username)
-      indices <- sample(length(pidsecoli),replace=TRUE)
-      indicesassist <- sample(length(pidsassist),replace=TRUE)
-      pidsecoli <- pidsecoli[indices]
-      pidsassist <- pidsassist[indicesassist]
-      save(pidsecoli,file="pidsecoli.txt")
-      save(pidsassist,file="pidsassist.txt")
-    }
-  }
+  gyration <- getGyrationRadius(dataset1, username)
+  print(gyration[300,])
+
+  Tao <- getContactFractionTime(gyration, surfRough, charaLength)
+
+  lambda <- getAreaofContact(gyration, dataset1, username)
+
+  Xmatrix <- getInteractionEnergys(dataset1, username)
+
+  
   cat("Fetching Data...")
   
   cutoff <- 0.3  #Set the surface cutoff
-  csurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
-  csurf <- csurf[pidsecoli,]
-  csurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
-  csurfassist <- csurfassist[pidsassist,]
+  psurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=TRUE, username)
+  psurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=TRUE, username)
   
   cutoff <- -1.0  #Set the unfolded cutoff
-  cunfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
-  cunfold <- cunfold[pidsecoli,]
-  cunfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
-  cunfoldassist <- cunfoldassist[pidsassist,]
-  
-  cburied <- cunfold - csurf
-  cburiedassist <- cunfoldassist - csurfassist
+  punfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=TRUE, username)
+  punfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=TRUE, username)
+
   cat(" Done!\n")
 
-  #Generate the raw counts lists
-  counts <- list(csurf, cburied, cunfold)
-  names(counts) <- c("csurf","cburied","cunfold")
-  for (i in 1:3) {
-    counts[[i]] <- counts[[i]][match(colnames(countMatrix),names(counts[[i]]))]
-  }
-
-  countsassist <- list(csurfassist, cburiedassist, cunfoldassist)
-  names(countsassist) <- c("csurfassist","cburiedassist","cunfoldassist")
-  for (i in 1:3) {
-    countsassist[[i]] <- countsassist[[i]][match(colnames(countMatrix),names(countsassist[[i]]))]
-  }
-
-  #Generate the probability fraction list
-  pfracs <- counts
-  names(pfracs) <- c("psurf","pburied","punfold")
-  for (i in 1:3) {
-    for (j in 1:nrow(pfracs[[i]])) {
-      pfracs[[i]][j,] <- pfracs[[i]][j,] / sum(pfracs[[i]][j,])
-    }
-  }
-
-  pfracsassist <- countsassist
-  names(pfracsassist) <- c("psurfassist","pburiedassist","punfoldassist")
-  for (i in 1:3) {
-    for (j in 1:nrow(pfracsassist[[i]])) {
-      pfracsassist[[i]][j,] <- pfracsassist[[i]][j,] / sum(pfracsassist[[i]][j,])
-    }
-  }
-
-  #Generate surface fraction for both datasets
-  surFrac <- sum(counts$csurf) / (sum(counts$csurf) + sum(counts$cburied))
-  surFracAssist <- sum(countsassist$csurfassist) / (sum(countsassist$csurfassist) + sum(countsassist$cburiedassist));
-
   #Generate ddG matrix
-  ddGecoli <- matrix(0,length(pidsecoli),2)
-  rownames(ddGecoli) <- pidsecoli
-  colnames(ddGecoli) <- c("DDG","length")
-  cat("Processing DataSet1...")
+  cat("Processing DataSet...")
 
-  for(i in 1:length(pidsecoli)) {
-    if(pidsecoli[i] %in% pidsassist) {
-      ddGecoli[i,1] <- 0
-      cat(paste("\rSkipping...","         ", i,"/",length(pidsecoli)))
-    }
-    else {
-      #Use the "proteinFreeEnergyModel" script to calculate ddG value for specific protein using either GroEL_open distribution or GroEL_close distribution.
-      ener <- 0.
-      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Close", ], pfracs, counts, surFrac, hydration=TRUE)
-#      ener <- proteinFreeEnergyModel(pidsecoli[i], countMatrix, groDist["GroEL_Open", ], pfracs, counts, surFrac, hydration=TRUE)
-      ddGecoli[i,1] <- -ener
-      cat(paste("\rProcessing DataSet1...", i,"/",length(pidsecoli)))
-    }
-    ddGecoli[i,2] <- sum(counts$cunfold[pidsecoli[i],])
+  energy <- matrix(0,nrow(gyration),2)
+  rownames(energy) <- rownames(psurf)
+  colnames(energy) <- c("Efold","Eunfold")
+
+  for(i in 1:nrow(psurf)) {
+    PDBID <- rownames(psurf)[i]
+    energy[i,"Efold"] <- getEnergyforFoldProtein(PDBID,psurf,groDist["GroEL_Close",],Xmatrix,thetaF)
+    energy[i,"Eunfold"] <- getEnergyforUnfoldProtein(PDBID,punfold,groDist["GroEL_Close",],Xmatrix,thetaF,gyration)
   }
-  cat(" \n")
-  ddGecoli <- ddGecoli[-which(ddGecoli[,1] == 0),]
 
-  ddGassist <- matrix(0,length(pidsassist),2)
-  rownames(ddGassist) <- pidsassist
-  colnames(ddGassist) <- c("DDG","length")
-  cat("Processing DataSet2...")
+  #calculate the final DDG matrix
+  ddG <- matrix(0,nrow(energy),1)
+  rownames(ddG) <- rownames(energy)
+  colnames <- "ddG"
 
-  for(i in 1:length(pidsassist)) {
-    ener <- 0.
-    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Close", ], pfracsassist, countsassist, surFracAssist, hydration=TRUE)
-#    ener <- proteinFreeEnergyModel(pidsassist[i], countMatrix, groDist["GroEL_Open", ], pfracsassist, countsassist, surFracAssist, hydration=TRUE)
-    ddGassist[i,1] <- -ener
-    cat(paste("\rProcessing DataSet2...", i,"/",length(pidsassist)))
-    ddGassist[i,2] <- sum(countsassist$cunfoldassist[pidsassist[i],])
+  for (i in 1:nrow(ddG)) {
+    ddG[i,1] <-  Tao[i,2] * lambda[i,2] * energy[i,2] - Tao[i,1] * lambda[i,1] * energy[i,1] - (gyration[i,1] / charaLength)^confineExp
   }
-  cat(" \n")
-  cat("Completed! \n")
-  ddG <- list(ddGecoli, ddGassist)
-  names(ddG) <- c("ecoli","assist")
+
 
   return(ddG)
 }
+ 
 
+#get the general gyration radius (Rg = N^nv*l) (Rf = sqrt(lambda_x^2+lambda_y^2+lambda_z^2))
+getGyrationRadius <- function(dataset, username) {
 
+  #Get Rg
+  Nv <- 0.6
+  l <- 2.5    #based on estimation, subject to change in the future
+  N <- fetchResNum(dataset, username)
+  
+  Rg <- matrix(0,nrow(N),1)
+  rownames(Rg) <- rownames(N)
+  
+  for (i in 1:nrow(N)) {
+    Rg[i,1] <- (as.numeric(N[i,1])^Nv)*l
+  }
+ 
+  #Get Rf
+  lambda <- fetchGyration(dataset,username)
+
+  Rf <- matrix(0,nrow(lambda),1)
+  rownames(Rf) <-  rownames(lambda)
+  
+  for (i in 1:nrow(lambda)) {
+    Rf[i,1] <- sqrt(as.numeric(lambda[i,1])^2+as.numeric(lambda[i,2])^2+as.numeric(lambda[i,3])^2)
+  }
+
+  #Put Rf, Rg into one matrix
+  data <- empty.df(c("Rg","Rf"), rownames(lambda))
+  for (i in 1:nrow(lambda)) {
+    data[i,1] <- N[i,1]
+    data[i,2] <- Rf[i,1]
+  }
+
+  return(data)
+}
+
+#Get the Tao value for both fold and unfolded states
+getContactFractionTime <- function(gyration, surfRough, charaLength){
+  Tao <- matrix(0,nrow(gyration),ncol(gyration))
+  rownames(Tao) <- rownames(gyration)
+  colnames(Tao) <- c("Tf","Tu")
+
+  for (i in 1:nrow(Tao)) {
+      Tao[i,1] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,1])))^3
+      Tao[i,2] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,2])))^3
+    }
+
+  return(Tao)
+}
+
+#get the Area of Contact for both fold and unfolded state
+getAreaofContact <- function(gyration,dataset,username) {
+  #acquire gyration info
+  lambda <- fetchGyration(dataset,username)
+
+  a <- matrix(0,nrow(gyration),2)
+  rownames(a) <- rownames(gyration)
+  colnames(a) <- c("af","au")
+
+  for (i in 1:nrow(a)) {
+    a[i,1] <- (0.5*(as.numeric(lambda[i,"lambda_y"])^2+as.numeric(lambda[i,"lambda_z"])^2) - as.numeric(lambda[i,"lambda_x"])^2) / as.numeric(gyration[i,"Rf"])
+#    a[i,1] <- a[i,1] * (4*pi*as.numeric(gyration[i,"Rf"])^2)
+    a[i,2] <- 2 * pi * as.numeric(gyration[i,"Rg"])^2
+  }
+  
+  return(a)
+}
+  
 
 #get the interaction energies between residue types
 getInteractionEnergys <- function(dataset, username=NULL) {
@@ -162,14 +163,35 @@ getInteractionEnergys <- function(dataset, username=NULL) {
   #normalize it
   mat <- t(apply(contactMatrix, MARGIN=1, FUN=function(x){ x / sum(x)}))
 
-  print(mat)
-  print(sum(mat[1,]))
-
   mat <- -log(mat)
   return(mat)
 }
 
-#The mean enegycycle code, worked for ecoli, assisted proteins, also used by the stochastic annealing code (Python).
+#Function to calculate the energy for folded protein
+getEnergyforFoldProtein <- function(PDBID,psurf,groDist,Xmatrix,thetaF) {
+  sum <- 0
+  for (i in 1:20) {
+    for (j in 1:20) {
+      sum <- sum + psurf[PDBID,i] * Xmatrix[colnames(psurf)[i],colnames(groDist)[j]] * groDist[j]
+    }
+  }
+  sum <- sum * thetaF
+  return(sum)
+}
+
+#Function to calculate the energy for unfolded protein
+getEnergyforUnfoldProtein <- function(PDBID,punfold,groDist,Xmatrix,thetaF,gyration) {
+  sum <- 0
+  for (i in 1:20) {
+    for (j in 1:20) {
+      sum <- sum + punfold[PDBID,i] * Xmatrix[colnames(punfold)[i],colnames(groDist)[j]] * groDist[j]
+    }
+  }
+  sum <- sum * as.numeric(gyration[PDBID,"Rf"])^3 / as.numeric(gyration[PDBID,"Rg"])^3 * thetaF
+  return(sum)
+}
+
+#The main enegycycle code, worked for ecoli, assisted proteins, also used by the stochastic annealing code (Python).
 proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,surFrac,hydration=FALSE) {
   if (hydration == TRUE) {
     #process the contact matrix, making countMatrix, hydration, and contact.
@@ -289,7 +311,7 @@ proteinFreeEnergyModel <- function(PDBID,countMatrix,yDist,pfracs,counts,surFrac
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-#ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 #q(save="yes")
 
