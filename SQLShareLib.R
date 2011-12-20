@@ -62,10 +62,12 @@ fetchContacts <- function(tableName, username=FALSE) {
 sampleContacts <- function(countDataFrame, turnOffC=FALSE, random=TRUE) {
 
   ids <- unique(countDataFrame[,1])
-  if(random == TRUE)
+  if(random == TRUE) {
     indices <- sample(length(ids), replace=TRUE)
-  else
+  }else{
     indices <- 1:length(ids)
+  }
+  
   anames <- colnames(countDataFrame)[-c(1,2)]
 
   counts <- empty.df(anames, countDataFrame[countDataFrame[,1] == ids[1],"res_type"], default=0)
@@ -365,13 +367,12 @@ getSurfFrac <- function(dataset, cutoff, pdbid, username=FALSE) {
 }
 
 #Get the gyration parameter for each protein
-fetchGyration <- function(dataset, username=FALSE, gapTol=0) {
+fetchGyration <- function(dataset, username=FALSE) {
   if (username == FALSE) {
     username = myUsername
   }
   sql = paste("SELECT pdb_id, lambda_x, lambda_y, lambda_z FROM [", username, "@washington.edu].[",dataset, "_1.csv]", sep="")
   lambdalist <- fetchdata(sql)
-  print(length(lambdalist[[1]]))
   
   pdbids <- array("", length(lambdalist[[1]]) - 1)
   for(i in 2:length(lambdalist[[1]])) {
@@ -386,6 +387,28 @@ fetchGyration <- function(dataset, username=FALSE, gapTol=0) {
   }
   return(data)
 }
+
+#Get the residue number for each protein
+fetchResNum <- function(dataset, username=FALSE) {
+  if (username == FALSE) {
+    username = myUsername
+  }
+  sql = paste("SELECT pdb_id, res_num FROM [", username, "@washington.edu].[",dataset, "_1.csv]", sep="")
+  resNumlist <- fetchdata(sql)
+
+  pdbids <- array("", length(resNumlist[[1]]) - 1)
+  for(i in 2:length(resNumlist[[1]])) {
+    pdbids[i - 1] <- resNumlist[[1]][[i]][1]
+  }
+
+  data <- empty.df("res_Num",pdbids)
+  for(j in 2:length(resNumlist[[1]])) {
+    data[j-1, 1] <- resNumlist[[1]][[j]][2]
+  }
+
+  return(data)
+}
+  
 
 #Add error bars to a bargraph
 error.bar <- function(x, y, upper, lower=upper, length=0.1,...){
