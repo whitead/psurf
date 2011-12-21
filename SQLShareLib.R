@@ -129,8 +129,8 @@ fetchChargeAndSA <- function(dataset, username=myUsername) {
   sql = paste("select charge,surface_area FROM [", username, "@washington.edu].[",dataset,"_1.csv] WHERE charge IS NOT NULL",sep="")
   sqlList <- fetchdata(sql)
   #minus one to skip the column headers
-  charges <- rep(NA, length(sqlList[[1]]) - 1)
-  SAs <- rep(NA, length(sqlList[[1]]) - 1)
+  charges <- rep(0, length(sqlList[[1]]) - 1)
+  SAs <- rep(0, length(sqlList[[1]]) - 1)
   for(i in 2:length(sqlList[[1]])) {
     charges[i - 1] <- as.double(sqlList[[1]][[i]][1])
     SAs[i - 1] <- as.double(sqlList[[1]][[i]][2])
