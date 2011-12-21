@@ -234,15 +234,59 @@ getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) 
   return(sum)
 }
 
+#Method to calculate the first derivative of Residue and plot the bar graph
+getSurfResFirstDev <- function(username, dataset) {
+  interactionMatrix <- getInteractionEnergy(dataset, username)
+
+  cat("Processing Data...")
+  cutoff <- surfCutoff
+  psurf <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+
+  cat("Done! \n")
+  
+  #plot 1 : mean value of the E.Coli residue times interaction Matrix
+  meanDist <- empty.df(rnames="mean value",cnames=colnames(psurf))
+  for (i in 1:ncol(meanDist)) {
+    meanDist[1,i] <- mean(psurf[,i])
+  }
+
+  ecoliDist <- as.numeric(meanDist) %*% interactionMatrix
+
+  cairo_pdf('EColi_ResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(ecoliDist, col='gray', ylim=c(-1.0,2.0))
+  dev.off()
+
+  cat(paste(dataset,"_ResFirstDev.pdf has been added to your current directory", sep=""))
+  cat(" \n")
+
+  #plot 2 : GroEL Open residue times interaction Matrix
+  groOpen <- as.numeric(groDist["GroEL_Open",]) %*% interactionMatrix
+
+  cairo_pdf('groOpen_ResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(groOpen, col='gray', ylim=c(-1.0,2.0))
+  dev.off()
+
+  cat("groOpen_ResFirstDev.pdf has been added to your current directory\n")
+
+  #plot 3 : GroEL Close residue times interaction Matrix
+  groClose <- as.numeric(groDist["GroEL_Close",]) %*% interactionMatrix
+
+  cairo_pdf('groClose_ResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(groClose, col='gray', ylim=c(-1.0,2.0))
+  dev.off()
+
+  cat("groClose_ResFirstDev.pdf has been added to your current directory\n")
+}
+
 
 
 #Below are used for actuall program running
-#ddG <- energyCycle("ecoli40","wenjunh",split=TRUE)    
+#ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
 
-##Main excecuting code of this script, energycycle also used by Python code 
-#load("pidsecoli.txt")
-#load("pidsassist.txt")
-ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+getSurfResFirstDev("wenjunh","ecoli")
 
 #q(save="yes")
 
