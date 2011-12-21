@@ -22,7 +22,7 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
+proteinEnergyCycle <- function(username, groDist, dataset1="ecoli", dataset2="assist") {
   
   gyration <- getGyrationRadii(dataset1, username)
 
@@ -59,13 +59,13 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
     
     energy[i,"Efold"] <-
       getContactEnergy(psurf[PDBID,],
-                       groDist["GroEL_Close",],
+                       groDist[groDist,],
                        interactionMatrix,
                        surfDensities[PDBID])
     
     energy[i,"Eunfold"] <-
       getContactEnergy(punfold[PDBID, ],
-                       groDist["GroEL_Close",],
+                       groDist[groDist,],
                        interactionMatrix,
                        surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
   }
@@ -242,7 +242,7 @@ getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) 
 ##Main excecuting code of this script, energycycle also used by Python code 
 #load("pidsecoli.txt")
 #load("pidsassist.txt")
-ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
 
 #q(save="yes")
 
