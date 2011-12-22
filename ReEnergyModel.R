@@ -7,6 +7,7 @@ kuhnLength <- 1.83
 surfaceRoughness <- 3.5
 sawExponent <- 3/5.
 confinementExponent <- 3.25
+ellipExponent <- 1.6
 charaLength <- 60000    #These numbers are subject to change
 
 
@@ -21,20 +22,19 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
+proteinEnergyCycle <- function(username, groDist, dataset1="ecoli", dataset2="assist") {
   
   gyration <- getGyrationRadii(dataset1, username)
-  print(gyration[300,])
 
   timeFraction <- getContactFractionTime(gyration, surfaceRoughness, charaLength)
-
+  
   contactArea <- getContactArea(gyration, dataset1, username)
-
+  
   interactionMatrix <- getInteractionEnergy(dataset1, username)
 
-  surfDensities <- getSurfaceDensities(dataset1, username)
-
   
+  
+  surfDensities <- getSurfaceDensities(dataset1, username)
   cat("Fetching Data...")
   
   cutoff <- surfCutoff  #Set the surface cutoff
@@ -48,23 +48,24 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
   cat(" Done!\n")
 
   #Generate ddG matrix
-  cat("Processing DataSet...")
+  cat("Processing DataSet...\n")
 
   energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
   
   for(i in 1:nrow(psurf)) {
+    cat(paste("\r", i,"/", nrow(psurf)))
     
     PDBID <- rownames(psurf)[i]
     
     energy[i,"Efold"] <-
       getContactEnergy(psurf[PDBID,],
-                       groDist["GroEL_Close",],
+                       groDist[groDist,],
                        interactionMatrix,
                        surfDensities[PDBID])
     
     energy[i,"Eunfold"] <-
       getContactEnergy(punfold[PDBID, ],
-                       groDist["GroEL_Close",],
+                       groDist[groDist,],
                        interactionMatrix,
                        surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
   }
@@ -74,7 +75,7 @@ proteinEnergyCycle <- function(username, dataset1="ecoli", dataset2="assist") {
   names(ddG) <- rownames(energy)
 
   for (i in 1:length(ddG)) {
-    ddG[i] <-  timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] - timeFraction[i,"Tu"] * contactArea[i,"Af"] * energy[i,"Efold"] - (gyration[i,"Rg"] / charaLength)^confinementExponenet
+    ddG[i] <-  -timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] + timeFraction[i,"Tf"] * contactArea[i,"Af"] * energy[i,"Efold"] + (gyration[i,"Rg"] / charaLength)^confinementExponent
   }
 
 
@@ -128,7 +129,9 @@ getContactArea <- function(gyration,dataset,username) {
     a <- (0.5 * (gyration[i, "lambda.x"] ^ 2 + gyration[i, "lambda.y"] ^ 2)
                                - gyration[i, "lambda.z"] ^ 2) / gyration[i, "Rf"]
     areas[i,"Af"] <- a * surfaceAreas[i]
-    areas[i, "Au"] <- 0.5 * 4 * pi * gyration[i, "Rg"] ^ 2 #see equation in paper
+    ellip <- 4 * pi * (((gyration[i, "lambda.x"]*gyration[i, "lambda.y"])^ellipExponent + (gyration[i, "lambda.x"]*gyration[i, "lambda.z"])^ellipExponent + (gyration[i, "lambda.y"]*gyration[i, "lambda.z"])^ellipExponent) / 3)^(1 / ellipExponent)
+    ratio <- surfaceAreas[i] / ellip
+    areas[i, "Au"] <- ratio * 0.5 * 4 * pi * gyration[i, "Rg"] ^ 2 #see equation in paper  #added the ratio term to adjust the magnitude of Au
   }
 
   
@@ -158,7 +161,7 @@ getSurfaceDensities <- function(dataset, username=NULL) {
 #get the interaction energies between residue types
 getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
-  dataset <- paste(paste(dataset,"surface","contacts", sep="_"), "csv" ,sep=".")
+  dataset <- paste(paste(dataset,"total","contacts", sep="_"), "csv" ,sep=".")
  
   #get the data
   if(is.null(username)) {
@@ -231,15 +234,67 @@ getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) 
   return(sum)
 }
 
+#Method to calculate the first derivative of Residue and plot the bar graph
+getSurfResFirstDev <- function(username, dataset) {
+  interactionMatrix <- getInteractionEnergy(dataset, username)
+
+  cat("Processing Data...")
+  cutoff <- surfCutoff
+  psurf <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+
+## Code for Andrew's special demand 
+  cutoff <- -1.0
+  punfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+
+  meanFold <- apply(psurf, MARGIN=2, FUN=mean)
+  meanUnfold <- apply(punfold, MARGIN=2, FUN=mean)
+
+  meanDiff <- meanFold - meanUnfold
+  cat("Done!\n")
+
+  #plot 1
+  cairo_pdf('EColi_ResDiffDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(meanDiff, col='gray', ylim=c(-1.0,2.0))
+  graphics.off()
+  
+  ecoliDist <- (meanFold - meanUnfold) %*% interactionMatrix
+
+  cairo_pdf('EColi_SpecialResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(ecoliDist, col='gray', ylim=c(-1.0,2.0))
+  graphics.off()
+
+  cat(paste(dataset,"_ResFirstDev.pdf has been added to your current directory", sep=""))
+  cat(" \n")
+
+  #plot 2 : GroEL Open residue times interaction Matrix
+  groOpen <- as.numeric(groDist["GroEL_Open",]) %*% interactionMatrix
+
+  cairo_pdf('groOpen_ResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(groOpen, col='gray', ylim=c(-1.0,2.0))
+  dev.off()
+
+  cat("groOpen_ResFirstDev.pdf has been added to your current directory\n")
+
+  #plot 3 : GroEL Close residue times interaction Matrix
+  groClose <- as.numeric(groDist["GroEL_Close",]) %*% interactionMatrix
+
+  cairo_pdf('groClose_ResFirstDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(groClose, col='gray', ylim=c(-1.0,2.0))
+  dev.off()
+
+  cat("groClose_ResFirstDev.pdf has been added to your current directory\n")
+}
+
 
 
 #Below are used for actuall program running
-#ddG <- energyCycle("ecoli40","wenjunh",split=TRUE)    
+#ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
 
-##Main excecuting code of this script, energycycle also used by Python code 
-#load("pidsecoli.txt")
-#load("pidsassist.txt")
-ddG1 <- proteinEnergyCycle("wenjunh")#, pidsecoli=pidsecoli, pidsassist=pidsassist)
+getSurfResFirstDev("wenjunh","ecoli")
 
 #q(save="yes")
 

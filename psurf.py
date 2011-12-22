@@ -253,19 +253,16 @@ class Residue:
                    coord2 = otherRes.getSingleAtom(n).getCoord()
                    t = ((coord1[0]-coord2[0]) * (coord1[0]-centerPt[0]) + (coord1[1]-coord2[1]) * (coord1[1]-centerPt[1]) + (coord1[2]-coord2[2]) * (coord1[2]-centerPt[2])) / ((coord1[0]-centerPt[0])**2 + (coord1[1]-centerPt[1])**2 + (coord1[2]-centerPt[2])**2)
                    if 0 < t < 1:
-                   #print (t)
                        coord3 = [(coord1[0] * (1-t) + t * centerPt[0]), (coord1[1] * (1-t) + t * centerPt[1]), (coord1[2] * (1-t) + t * centerPt[2])]
                        d = 0
                        for (x1,x2) in zip(coord2, coord3):
                            d += (x1 - x2)**2
                        dist = math.sqrt(d)
-                       print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getSingleAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getSingleAtom(n), dist))
-                       #print(dist)
-                       #return dist
+                       #print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getSingleAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getSingleAtom(n), dist))
+                       
                        
                        if dist <= cutoffdist:
-                          #print('Outside')
-                          return("Outside")#, "Residue on Chain %s Number %s Type %s" % (self.getChain(), self.getresNum(), self.getType()))
+                          return("Outside")
                           break
              #if dist <= cutoffdist:
                 #break
@@ -720,6 +717,7 @@ def setCutoff(cut):
    surfCutoff = cut
 
 def isSurf(ratio):
+   global surfCutoff
    if(surfCutoff == 0):
       return True
    elif(surfCutoff < 0):
@@ -729,6 +727,10 @@ def isSurf(ratio):
       return True
 
    return False
+
+def setSurfCutoff(cutoff):
+   global surfCutoff
+   surfCutoff = cutoff
 
 def editPDB(pdbfile, outfile):   
    with open(pdbfile, 'r') as p:
