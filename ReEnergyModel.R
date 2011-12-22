@@ -8,7 +8,7 @@ surfaceRoughness <- 3.5
 sawExponent <- 3/5.
 confinementExponent <- 3.25
 ellipExponent <- 1.6
-charaLength <- 60000    #These numbers are subject to change
+charaLength <- 92.6    #These numbers are subject to change
 
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
