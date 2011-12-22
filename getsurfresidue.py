@@ -57,22 +57,22 @@ with open(outf, 'w') as g:
     for n in range(0,len(protein)):
         r1 = protein.getResidues()[n]
         if r1.isSurf() == True :
+            exterior = False
             for j in range(0,len(protein)):
                 r2 = protein.getResidues()[j]
                 if r2.getChain() == r1.getChain():
-                    if abs(i-j) > 1:
+                    if abs(n-j) > 1:
                         d = r1.ResIntersect(r2, center, 1)
                         control = []
                         if d == "Outside" :
-                            control = [r1.getChain(), r1.getIndex(), r1.getType()]
+                            exterior = True
                             g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(),"Out"))
                             try:
                                 g.write("%6.4f\n" % (r1.getSA() / aaSA[r1.getType()]))
                             except KeyError:
                                 pass
                             break
-            r = [r1.getChain(), r1.getIndex(), r1.getType()]
-            if r != control :
+            if (not exterior):
                 g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(), "In"))
                 try:
                     g.write("%6.4f\n" % (r1.getSA() / aaSA[r1.getType()]))
@@ -80,8 +80,8 @@ with open(outf, 'w') as g:
                     pass
                 #write XYZ coordinates of this interior residue
                 if(xyzOut):
-                    for atom in r.getAtoms():
-                        g.write("%s\n" % atom.printCoord())
+                    for atom in r1.getAtoms():
+                        xyzOut.write("%s %s\n" % (r1.getChain(), atom.printCoord()))
                     
         else:
            g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(), "Buried"))  
