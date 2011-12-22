@@ -14,15 +14,15 @@ if( len(sys.argv) != 3 ):
 inf = sys.argv[1]
 outf = sys.argv[2]
 
-f = readProteinSA(inf)
+protein = readProteinSA(inf)
 
 data = []
 center = [0,0,0]
 atomnum = [0]
 
 #Calculate the center of the molecule
-for n in range(0,len(f)):
-    r1 = f.getResidues(n)
+for n in range(0,len(protein)):
+    r1 = protein.getResidues()[n]
     if r1.isSurf() == True :
 
         atomnum[0] += r1.getAtomNum()
@@ -40,20 +40,20 @@ print("Center Point Coordinate is %s" %(center))
 
 
 #Not sure what this part does
-for n in range(0,len(f)):
-    for j in range(0,f.getResidues(n).getAtomNum()):
-        a1 = f.getResidues(n).getSingleAtom(j)
+for n in range(0,len(protein)):
+    for j in range(0,protein.getResidues()[n].getAtomNum()):
+        a1 = protein.getResidues()[n].getSingleAtom(j)
 
 
 with open(outf, 'w') as g:
-    g.write("PDBID, Chain, Rnum, Res, Location, SAfrac\n")
-    for n in range(0,len(f)):
-        r1 = f.getResidues(n)
+    g.write("pdb_id, chain, res_index, res_type, location, res_surface_area_ratio\n")
+    for n in range(0,len(protein)):
+        r1 = protein.getResidues()[n]
         if r1.isSurf() == True :
-            for j in range(0,len(f)):
-                r2 = f.getResidues(j)
+            for j in range(0,len(protein)):
+                r2 = protein.getResidues()[j]
                 if r2.getChain() == r1.getChain():
-                    if j > n+1 or j < n-1:
+                    if abs(i-j) > 1:
                         d = r1.ResIntersect(r2, center, 1)
                         control = []
                         if d == "Outside" :

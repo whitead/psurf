@@ -258,8 +258,7 @@ class Residue:
                        for (x1,x2) in zip(coord2, coord3):
                            d += (x1 - x2)**2
                        dist = math.sqrt(d)
-                       #print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getSingleAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getSingleAtom(n), dist))
-                       
+                       #print("Chain %s Res %s Atom %s with Chain %s Res %s Atom %s, distance is %s" %(self.getChain(), self.getIndex(), self.getSingleAtom(j), otherRes.getChain(), otherRes.getIndex(), otherRes.getSingleAtom(n), dist))            
                        
                        if dist <= cutoffdist:
                           return("Outside")
