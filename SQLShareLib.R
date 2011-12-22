@@ -409,6 +409,42 @@ fetchResNum <- function(dataset, username=FALSE) {
 
   return(data)
 }
+
+#Get the inner surface list of the HSP proteins
+fetchHSPResCount <- function(dataset, Location, username=FALSE) {
+  if (username == FALSE) {
+    username = myUsername
+  }
+
+  sql <- paste("SELECT DISTINCT PDBID FROM [", username, "@washington.edu].[",dataset, "_2.csv]", sep="")
+  pdblist <- fetchdata(sql)
+  pdbids <- rep("", length(pdblist[[1]]) - 1)
+  for (i in 2:length(pdblist[[1]])) {
+    pdbids[i-1] <- pdblist[[1]][[i]][1]
+  }
+
+  sql <- paste("SELECT PDBID, RES, Location FROM [", username, "@washington.edu].[", dataset, "_2.csv]​ WHERE Location='", Location,"'", sep="")
+  reslist <- fetchdata(sql)
+  residueList <- matrix("",length(reslist[[1]])-1,2)
+  colnames=c("PDBID","RES")
+  
+  for (i in 2:length(reslist[[1]])) {
+    for (j in 1:2) {
+      residueList[i-1,j] <- reslist[[1]][[i]][j]
+    }
+  }
+
+  hspResRawCounts <- empty.df(cnames=aalist, rnames=pdbids, default=0)
+  for (i in 1:length(pdbids)) {
+    temp <- table(residueList[which(residueList[,1] == pdbids[i]),2])
+    for (j in 1: length(aalist)) {
+      try(hspResRawCounts[i,j] <- temp[which(names(temp) == aalist[j])], silent=TRUE)
+    }
+  }
+
+  return(hspResRawCounts)
+}
+
   
 
 #Add error bars to a bargraph

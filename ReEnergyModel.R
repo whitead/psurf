@@ -242,20 +242,28 @@ getSurfResFirstDev <- function(username, dataset) {
   cutoff <- surfCutoff
   psurf <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
 
-  cat("Done! \n")
+## Code for Andrew's special demand 
+  cutoff <- -1.0
+  punfold <- fetchAllSurfResidues(dataset, cutoff, normalize=TRUE, username)
+
+  meanFold <- apply(psurf, MARGIN=2, FUN=mean)
+  meanUnfold <- apply(punfold, MARGIN=2, FUN=mean)
+
+  meanDiff <- meanFold - meanUnfold
+  cat("Done!\n")
+
+  #plot 1
+  cairo_pdf('EColi_ResDiffDev.pdf',width=8, height=5)
+  par(family='LMSans10', cex.axis=0.65, ps=11)
+  barplot(meanDiff, col='gray', ylim=c(-1.0,2.0))
+  graphics.off()
   
-  #plot 1 : mean value of the E.Coli residue times interaction Matrix
-  meanDist <- empty.df(rnames="mean value",cnames=colnames(psurf))
-  for (i in 1:ncol(meanDist)) {
-    meanDist[1,i] <- mean(psurf[,i])
-  }
+  ecoliDist <- (meanFold - meanUnfold) %*% interactionMatrix
 
-  ecoliDist <- as.numeric(meanDist) %*% interactionMatrix
-
-  cairo_pdf('EColi_ResFirstDev.pdf',width=8, height=5)
+  cairo_pdf('EColi_SpecialResFirstDev.pdf',width=8, height=5)
   par(family='LMSans10', cex.axis=0.65, ps=11)
   barplot(ecoliDist, col='gray', ylim=c(-1.0,2.0))
-  dev.off()
+  graphics.off()
 
   cat(paste(dataset,"_ResFirstDev.pdf has been added to your current directory", sep=""))
   cat(" \n")
