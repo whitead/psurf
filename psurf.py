@@ -43,7 +43,7 @@ class Atom:
    def __init__(self):
       self.coord = (0,0,0)
       self.type = "H"
-      self.index = 0
+      self.index = -1
       self.beta = 0
       self.sa = 0
       self.occ = 1
@@ -191,7 +191,7 @@ class Residue:
 
    def getSecStruct(self):
       return self.secStruct
-   
+
    def setSecStruct(self, secStruct):
       self.secStruct = secStruct
 
@@ -353,8 +353,8 @@ class Protein:
     def getWaterNumber(self):
        return len(self.waters)
 
-    def getResidues(self,r):
-        return self.residues[r]
+    def getResidues(self):
+        return self.residues
 
     def getResidue(self, rindex, chain):
        rindex = self.getResidueIndex(rindex, chain)
@@ -365,7 +365,7 @@ class Protein:
 
     def getResidueIndex(self, rindex, chain):
        for i,r in zip(range(len(self.residues)),self.residues):
-          if(r.getIndex() == rindex and r.getChain() == chain):
+          if(r.getIndex() == rindex and (chain == "" or r.getChain() == chain)):
              return i
        return None
 
@@ -598,7 +598,8 @@ def readProtein(pdbfile, dsspfile=""):
                 if(proteinnum[0] != proteinnum[1]):  #check residue number              
                     currentR = Residue()               #initialize a new residue
                     proteinnum[1] = proteinnum[0]        #assign new residue number
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
+                    #NOTE: I've switched to fixed width for the residue number because sometimes a chain is missing, which cauese the number to split up so I've temporarily fixed this by simply using the fixed width format
+                    currentR.fromData([], m.group(3), m.group(4), int(line[22:26]))  #initialization
                     prot.addResidue(currentR)              #add new residue to protein
 
             
