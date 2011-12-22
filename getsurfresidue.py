@@ -5,14 +5,18 @@ import sys
 
 
 def printHelp():   #system help for the program
-    print "getsurfresidue [input pdb file] [output file name]"
+    print "getsurfresidue [input pdb file] [output file name] [optional XYZ coordinates for interior]"
     exit(0)
 
-if( len(sys.argv) != 3 ):
+if( len(sys.argv) < 3 ):
     printHelp()
 
 inf = sys.argv[1]
 outf = sys.argv[2]
+
+xyzfile = ""
+if(len(sys.argv) == 4):
+    xyzfile = sys.argv[3]
 
 protein = readProteinSA(inf)
 
@@ -44,6 +48,9 @@ for n in range(0,len(protein)):
     for j in range(0,protein.getResidues()[n].getAtomNum()):
         a1 = protein.getResidues()[n].getSingleAtom(j)
 
+xyzOut = False
+if(xyzfile != ""):
+    xyzOut = open(xyzfile, "w")
 
 with open(outf, 'w') as g:
     g.write("pdb_id, chain, res_index, res_type, location, res_surface_area_ratio\n")
@@ -66,14 +73,22 @@ with open(outf, 'w') as g:
                             break
             r = [r1.getChain(), r1.getIndex(), r1.getType()]
             if r != control :
-                g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(), "In"))  
+                g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(), "In"))
                 try:
                     g.write("%6.4f\n" % (r1.getSA() / aaSA[r1.getType()]))
                 except KeyError:
                     pass
+                #write XYZ coordinates of this interior residue
+                if(xyzOut):
+                    for atom in r.getAtoms():
+                        g.write("%s\n" % atom.printCoord())
+                    
         else:
            g.write("%s, %s, %s, %s, %s, " %(inf[0:4], r1.getChain(), r1.getIndex(), r1.getType(), "Buried"))  
            try:
                g.write("%6.4f\n" % (r1.getSA() / aaSA[r1.getType()]))
            except KeyError:
                pass 
+
+if(xyzOut):
+    xyzOut.close()
