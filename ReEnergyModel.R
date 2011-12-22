@@ -33,8 +33,6 @@ proteinEnergyCycle <- function(username, groDist, dataset1="ecoli", dataset2="as
   
   interactionMatrix <- getInteractionEnergy(dataset1, username)
 
-  
-  
   surfDensities <- getSurfaceDensities(dataset1, username)
   cat("Fetching Data...")
   
@@ -252,7 +250,8 @@ getSurfResFirstDev <- function(username, dataset) {
 
   meanDiff <- meanFold - meanUnfold
   cat("Done!\n")
-
+#######
+  
   #plot 1
   cairo_pdf('EColi_ResDiffDev.pdf',width=8, height=5)
   par(family='LMSans10', cex.axis=0.65, ps=11)
