@@ -416,17 +416,17 @@ fetchHSPResCount <- function(dataset, Location, username=FALSE) {
     username = myUsername
   }
 
-  sql <- paste("SELECT DISTINCT PDBID FROM [", username, "@washington.edu].[",dataset, "_2.csv]", sep="")
+  sql <- paste("SELECT DISTINCT pdb_id FROM [", username, "@washington.edu].[",dataset, "_2.csv]", sep="")
   pdblist <- fetchdata(sql)
   pdbids <- rep("", length(pdblist[[1]]) - 1)
   for (i in 2:length(pdblist[[1]])) {
     pdbids[i-1] <- pdblist[[1]][[i]][1]
   }
 
-  sql <- paste("SELECT PDBID, RES, Location FROM [", username, "@washington.edu].[", dataset, "_2.csv]​ WHERE Location='", Location,"'", sep="")
+  sql <- paste("SELECT pdb_od, res_type, location FROM [", username, "@washington.edu].[", dataset, "_2.csv]​ WHERE location='", Location,"'", sep="")
   reslist <- fetchdata(sql)
   residueList <- matrix("",length(reslist[[1]])-1,2)
-  colnames=c("PDBID","RES")
+  colnames=c("pdb_id","res_type")
   
   for (i in 2:length(reslist[[1]])) {
     for (j in 1:2) {
