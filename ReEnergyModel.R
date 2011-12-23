@@ -22,7 +22,7 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, groDist, derivative=FALSE, dataset1="ecoli", dataset2="assist") {
+proteinEnergyCycle <- function(username, groDistForm, derivative=FALSE, dataset1="ecoli", dataset2="assist") {
   
   gyration <- getGyrationRadii(dataset1, username)
 
@@ -58,13 +58,13 @@ proteinEnergyCycle <- function(username, groDist, derivative=FALSE, dataset1="ec
       
       energy[i,"Efold"] <-
         getContactEnergy(psurf[PDBID,],
-                         groDist[groDist,],
+                         groDist[groDistForm,],
                          interactionMatrix,
                          surfDensities[PDBID])
     
       energy[i,"Eunfold"] <-
         getContactEnergy(punfold[PDBID, ],
-                         groDist[groDist,],
+                         groDist[groDistForm,],
                          interactionMatrix,
                          surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
     }
@@ -79,25 +79,28 @@ proteinEnergyCycle <- function(username, groDist, derivative=FALSE, dataset1="ec
     return(ddG)
   } else {
     #method to get the derivative of the ddG and make plot of that
-    cat("Calculating Derivative...\n")
+    cat("Calculating Derivative...")
 
-    #calculate the prefactor of the energy matrix
-    proteinResInfo <- matrix(0,nrow(psurf),ncol(psurf)) #used matrix here because we will do matrix multiplication on that later
-    rownames(proteinResInfo) <- rownames(psurf)
-    colnames(proteinResInfo) <- colnames(psurf)
+    proteinResDev <- matrix(0,nrow(psurf),ncol(psurf)) #used matrix here because we will do matrix multiplication on that later
+    rownames(proteinResDev) <- rownames(psurf)
+    colnames(proteinResDev) <- colnames(psurf)
 
-    for (i in 1:nrow(proteinResInfo)) {
-      temp <- -timeFraction[i,"Tu"] * contactArea[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * contactArea[i,"Af"] * psurf[i,]
-      print(length(temp))
-      for (j in 1:length(temp)) { #For some reason R says it's "dimension error" when I try directly to put things into a row in proteinResInfo matrix in one line code, it doesn't work this way either...
-        proteinResInfo[i,j] <- temp[j]
+    for (i in 1:nrow(proteinResDev)) {
+      #calculate the prefactor of the energy matrix
+      temp <- -timeFraction[i,"Tu"] * contactArea[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * contactArea[i,"Af"] * psurf[i,]  
+      proteinResDev[i,] <- as.matrix(temp) %*% interactionMatrix
       }
-    }
 
-    ddGDerivative <- 
+    resDev <- apply(proteinResDev, MARGIN=2, FUN=mean)
+
+    cat("Done! \n")
     
+    #make plot
+    cairo_pdf('Ecoli_ResDiffDevFull.pdf', width=8, height=5)
+    par(family='LMSans10', cex.axis=0.65, ps=11)
+    barplot(resDev, col='gray')#, ylim=c(-1.0,2.0))
+    graphics.off()
   }
-
 } 
 
 #get the general gyration radius (Rg = N^nv*l) (Rf = sqrt(lambda_x^2+lambda_y^2+lambda_z^2))
@@ -310,8 +313,8 @@ getSurfResFirstDev <- function(username, dataset) {
 
 
 #Below are used for actuall program running
-ddG1 <- proteinEnergyCycle("wenjunh", "GroEL_Close", derivative=TRUE)
-#ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
+ddG1 <- proteinEnergyCycle("wenjunh", "GroEL_Close", derivative=FALSE)
+ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
 
 #getSurfResFirstDev("wenjunh","ecoli")
 
