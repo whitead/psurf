@@ -22,7 +22,7 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, groDist, dataset1="ecoli", dataset2="assist") {
+proteinEnergyCycle <- function(username, groDist, derivative=FALSE, dataset1="ecoli", dataset2="assist") {
   
   gyration <- getGyrationRadii(dataset1, username)
 
@@ -45,41 +45,60 @@ proteinEnergyCycle <- function(username, groDist, dataset1="ecoli", dataset2="as
 
   cat(" Done!\n")
 
-  #Generate ddG matrix
-  cat("Processing DataSet...\n")
+  if (derivative == FALSE) {
+    #Generate ddG matrix
+    cat("Processing DataSet...\n")
+    
+    energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
+    
+    for(i in 1:nrow(psurf)) {
+      cat(paste("\r", i,"/", nrow(psurf)))
+      
+      PDBID <- rownames(psurf)[i]
+      
+      energy[i,"Efold"] <-
+        getContactEnergy(psurf[PDBID,],
+                         groDist[groDist,],
+                         interactionMatrix,
+                         surfDensities[PDBID])
+    
+      energy[i,"Eunfold"] <-
+        getContactEnergy(punfold[PDBID, ],
+                         groDist[groDist,],
+                         interactionMatrix,
+                         surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
+    }
+    
+    #calculate the final DDG matrix
+    ddG <- rep(0, nrow(energy))
+    names(ddG) <- rownames(energy)
+    
+    for (i in 1:length(ddG)) {
+      ddG[i] <-  -timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] + timeFraction[i,"Tf"] * contactArea[i,"Af"] * energy[i,"Efold"] + (gyration[i,"Rg"] / charaLength)^confinementExponent
+    }
+    return(ddG)
+  } else {
+    #method to get the derivative of the ddG and make plot of that
+    cat("Calculating Derivative...\n")
 
-  energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
-  
-  for(i in 1:nrow(psurf)) {
-    cat(paste("\r", i,"/", nrow(psurf)))
+    #calculate the prefactor of the energy matrix
+    proteinResInfo <- matrix(0,nrow(psurf),ncol(psurf)) #used matrix here because we will do matrix multiplication on that later
+    rownames(proteinResInfo) <- rownames(psurf)
+    colnames(proteinResInfo) <- colnames(psurf)
+
+    for (i in 1:nrow(proteinResInfo)) {
+      temp <- -timeFraction[i,"Tu"] * contactArea[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * contactArea[i,"Af"] * psurf[i,]
+      print(length(temp))
+      for (j in 1:length(temp)) { #For some reason R says it's "dimension error" when I try directly to put things into a row in proteinResInfo matrix in one line code, it doesn't work this way either...
+        proteinResInfo[i,j] <- temp[j]
+      }
+    }
+
+    ddGDerivative <- 
     
-    PDBID <- rownames(psurf)[i]
-    
-    energy[i,"Efold"] <-
-      getContactEnergy(psurf[PDBID,],
-                       groDist[groDist,],
-                       interactionMatrix,
-                       surfDensities[PDBID])
-    
-    energy[i,"Eunfold"] <-
-      getContactEnergy(punfold[PDBID, ],
-                       groDist[groDist,],
-                       interactionMatrix,
-                       surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
   }
 
-  #calculate the final DDG matrix
-  ddG <- rep(0, nrow(energy))
-  names(ddG) <- rownames(energy)
-
-  for (i in 1:length(ddG)) {
-    ddG[i] <-  -timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] + timeFraction[i,"Tf"] * contactArea[i,"Af"] * energy[i,"Efold"] + (gyration[i,"Rg"] / charaLength)^confinementExponent
-  }
-
-
-  return(ddG)
-}
- 
+} 
 
 #get the general gyration radius (Rg = N^nv*l) (Rf = sqrt(lambda_x^2+lambda_y^2+lambda_z^2))
 getGyrationRadii <- function(dataset, username) {
@@ -291,9 +310,10 @@ getSurfResFirstDev <- function(username, dataset) {
 
 
 #Below are used for actuall program running
+ddG1 <- proteinEnergyCycle("wenjunh", "GroEL_Close", derivative=TRUE)
 #ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
 
-getSurfResFirstDev("wenjunh","ecoli")
+#getSurfResFirstDev("wenjunh","ecoli")
 
 #q(save="yes")
 
