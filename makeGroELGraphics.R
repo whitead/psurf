@@ -82,23 +82,23 @@ for (i in 1:nrow(hspRawCount)) {
 hspRawCount <- as.matrix(hspRawCount)
 
 hspDist <- matrix(0,nrow(hspRawCount)+1, ncol(hspRawCount))
-rownames(hspDist) <- c("E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic HSP","E.Coli")
+rownames(hspDist) <- c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic HSP")
 colnames(hspDist) <- colnames(hspRawCount)
 
-hspDist[1,] <- hspRawCount["1SX4",]
-hspDist[2,] <- hspRawCount["1WE3",]
-hspDist[3,] <- hspRawCount["3KFB",]
-hspDist[4,] <- hspRawCount["2CG9",]
-hspDist[5,] <- hspRawCount["3P9D",]
+hspDist[2,] <- hspRawCount["1SX4",]
+hspDist[3,] <- hspRawCount["1WE3",]
+hspDist[4,] <- hspRawCount["3KFB",]
+hspDist[5,] <- hspRawCount["2CG9",]
+hspDist[6,] <- hspRawCount["3P9D",]
 
 cutoff <- 0.3
 psurf <- fetchAllSurfResidues("ecoli", cutoff, normalize=TRUE, "wenjunh")
-hspDist[6,] <- apply(psurf, MARGIN=2, FUN=mean)
+hspDist[1,] <- apply(psurf, MARGIN=2, FUN=mean)
 
 cairo_pdf('HSP_Protein_Dist.pdf',width=5.5, height=2.58, pointsize=9)
 par(family='LMSans10', cex.axis=0.75)
 barplot(hspDist, beside=TRUE, col=c('gray90','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
-legend("topright", col=c('gray90','gray75','gray60','gray45','gray30','gray15'), legend=c("E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic HSP","E.Coli"), pch=rep(15,6), cex=0.8)
+legend("topright", col=c('gray90','gray75','gray60','gray45','gray30','gray15'), legend=c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic HSP"), pch=rep(15,6), cex=0.8)
 graphics.off()
 
 
