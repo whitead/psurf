@@ -8,7 +8,7 @@ surfaceRoughness <- 3.5
 sawExponent <- 3/5.
 confinementExponent <- 3.25
 ellipExponent <- 1.6
-charaLength <- 92.6    #These numbers are subject to change
+charaLength <- 46.3    #These numbers are subject to change
 openCharaLength <- 79.5
 
 
@@ -29,55 +29,65 @@ proteinEnergyCycle <- function(username, groDistForm, derivative=FALSE, dataset1
 
   timeFraction <- getContactFractionTime(gyration, surfaceRoughness, charaLength)
   
-  contactArea <- getContactArea(gyration, dataset1, username)
+  shapeFactors <- getShapeFactor(gyration)
   
   interactionMatrix <- getInteractionEnergy(dataset1, username)
 
-  surfDensities <- getSurfaceDensities(dataset1, username)
+
   cat("Fetching Data...")
   
   cutoff <- surfCutoff  #Set the surface cutoff
-  psurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=TRUE, username)
-  psurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=TRUE, username)
+  psurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  psurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
+
+  resNumbersFold <- apply(psurf, MARGIN=1, sum)
+  psurf <- t(apply(psurf, MARGIN=1, function(x) {x / sum(x)}))
   
   cutoff <- -1.0  #Set the unfolded cutoff
-  punfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=TRUE, username)
-  punfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=TRUE, username)
+  punfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+
+  resNumbersUnfold <- apply(punfold, MARGIN=1, sum)
+  punfold <- t(apply(punfold, 1, function(x) { x / sum(x)}))
+  
+  punfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
 
   cat(" Done!\n")
 
   if (derivative == FALSE) {
     #Generate ddG matrix
-    cat("Processing DataSet...\n")
-    
+    cat("Processing Dataset...")
     energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
     
     for(i in 1:nrow(psurf)) {
-      cat(paste("\r", i,"/", nrow(psurf)))
+      cat(paste("\rProcessing Dataset...", i,"/", nrow(psurf)))
       
-      PDBID <- rownames(psurf)[i]
-      
+      PDBID <- rownames(gyration)[i]
+
       energy[i,"Efold"] <-
         getContactEnergy(psurf[PDBID,],
                          groDist[groDistForm,],
                          interactionMatrix,
-                         surfDensities[PDBID])
-    
+                         resNumbersFold[PDBID])
       energy[i,"Eunfold"] <-
         getContactEnergy(punfold[PDBID, ],
                          groDist[groDistForm,],
                          interactionMatrix,
-                         surfDensities[PDBID] * (gyration[PDBID, "Rf"] / gyration[PDBID, "Rg"]) ^ 3)
+                         resNumbersUnfold[PDBID] * gyration[i,"Rf"] / gyration[i, "Rg"])
     }
+    cat("\n")
     
-    #calculate the final DDG matrix
+    #calculate the final DDG vector
     ddG <- rep(0, nrow(energy))
     names(ddG) <- rownames(energy)
     
     for (i in 1:length(ddG)) {
-      ddG[i] <-  -timeFraction[i,"Tu"] * contactArea[i,"Au"] * energy[i,"Eunfold"] + timeFraction[i,"Tf"] * contactArea[i,"Af"] * energy[i,"Efold"] + (gyration[i,"Rg"] / charaLength)^confinementExponent
+      ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
     }
-    return(ddG)
+
+    #put the various values into a dataframe
+    allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
+    
+    return(allData)
   } else {
     #method to get the derivative of the ddG and make plot of that
     cat("Calculating Derivative...")
@@ -88,7 +98,7 @@ proteinEnergyCycle <- function(username, groDistForm, derivative=FALSE, dataset1
 
     for (i in 1:nrow(proteinResDev)) {
       #calculate the prefactor of the energy matrix
-      temp <- -timeFraction[i,"Tu"] * contactArea[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * contactArea[i,"Af"] * psurf[i,]  
+      temp <- -timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * shapeFactors[i,"Af"] * psurf[i,]  
       proteinResDev[i,] <- as.matrix(temp) %*% interactionMatrix
       }
 
@@ -131,28 +141,36 @@ getContactFractionTime <- function(gyration, surfRough, charaLength){
   Tao <- empty.df(rnames=rownames(gyration), cnames=c("Tf", "Tu"))
   
   for (i in 1:nrow(Tao)) {
-      Tao[i,"Tf"] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,"Rg"])))^3
-      Tao[i,"Tu"] <- 1 - (1 - surfRough / (charaLength - as.numeric(gyration[i,"Rf"])))^3
+
+
+    if(gyration[i, "Rf"] + surfRough >= charaLength) {
+      Tao[i, "Tf"] <- 1
+    } else {
+      Tao[i,"Tf"] <- 1 - (1 - surfRough / (charaLength - (gyration[i,"Rf"])))^3
     }
 
+
+    if(gyration[i, "Rg"] + surfRough >= charaLength) {
+      Tao[i, "Tu"] <- 1
+    }  else {
+      Tao[i,"Tu"] <- 1 - (1 - surfRough / (charaLength - (gyration[i,"Rg"])))^3
+    }
+  }
+
+  
   return(Tao)
 }
 
 #get the Area of Contact for both fold and unfolded state
-getContactArea <- function(gyration,dataset,username) {
+getShapeFactor <- function(gyration) {
 
-  #get empirical areas
-  surfaceAreas <- fetchChargeAndSA(dataset, username)$surface_area
   areas <- empty.df(rnames=rownames(gyration), cnames=c("Af", "Au"))
   
   for (i in 1:nrow(areas)) {
     #calculate the shape parameter, similar to asphericity.x
-    a <- (0.5 * (gyration[i, "lambda.x"] ^ 2 + gyration[i, "lambda.y"] ^ 2)
-                               - gyration[i, "lambda.z"] ^ 2) / gyration[i, "Rf"]
-    areas[i,"Af"] <- a * surfaceAreas[i]
-    ellip <- 4 * pi * (((gyration[i, "lambda.x"]*gyration[i, "lambda.y"])^ellipExponent + (gyration[i, "lambda.x"]*gyration[i, "lambda.z"])^ellipExponent + (gyration[i, "lambda.y"]*gyration[i, "lambda.z"])^ellipExponent) / 3)^(1 / ellipExponent)
-    ratio <- surfaceAreas[i] / ellip
-    areas[i, "Au"] <- ratio * 0.5 * 4 * pi * gyration[i, "Rg"] ^ 2 #see equation in paper  #added the ratio term to adjust the magnitude of Au
+    a <- (0.5 * (gyration[i, "lambda.x"] ^ 2 + gyration[i, "lambda.y"] ^ 2) - gyration[i, "lambda.z"] ^ 2) / gyration[i, "Rf"] ^ 2
+    areas[i,"Af"] <- a
+    areas[i, "Au"] <- 0.5
   }
 
   
@@ -244,14 +262,9 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 }
 
 #Function to calculate the energy for folded protein
-getContactEnergy <- function(proteinDist,groDist,interactionMatrix,surfDensity) {
-  sum <- 0
-  for (i in 1:20) {
-    for (j in 1:20) {
-      sum <- sum + proteinDist[i] * interactionMatrix[colnames(proteinDist)[i],colnames(groDist)[j]] * groDist[j]
-    }
-  }
-  sum <- sum * surfDensity
+getContactEnergy <- function(proteinDist,groDist,interactionMatrix,resNumber) {
+  sum <- (proteinDist %*% interactionMatrix) %*% t(groDist)
+  sum <- sum * resNumber
   return(sum)
 }
 
@@ -313,9 +326,10 @@ getSurfResFirstDev <- function(username, dataset) {
 
 
 
-#Below are used for actuall program running
+#Below are used for actual program 
 ddG1 <- proteinEnergyCycle("wenjunh", "GroEL_Close", derivative=FALSE)
 ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
+
 
 #getSurfResFirstDev("wenjunh","ecoli")
 
@@ -396,8 +410,3 @@ ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
 
 
 ##Functions that are no longer being used
-
-
-
-
-
