@@ -1,27 +1,20 @@
 import math, re
-
 #Created by Andrew White, 2011
 
-#0 atom number
-#1 atom type
-#2 residue type
-#3 chain
-#4 residue number
-#5 x-cord
-#6 y-cord
-#7 z-cord
-#8 occupancy
-#9 beta factor
-                     #ATOM    atomnum     atom type             residue type     chain           residue number  x                  y                    z          occupancy   beta factor
-regexp = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,4})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([-\d\.]{1,8})[\s]*([\d\.]{1,6})[\s]*([-\d\.]{1,6})[\s]*(.*)")
 
-#added SA column
-regexpSA = re.compile("ATOM[\s]*([\d]*)[\s]*([\w\d]{1,4})[\s]{0,3}([\w]{1,4})[\s]*([\w]*)[\s]{0,5}([\d]{1,5})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{3,7})[\s]*(-{0,1}[\d\.]{1,5})[\s]*(-{0,1}[\d\.]{1,5})[\s]*([-\d\.]*)")
+#PDB Format
+pdbSliceIndices = [6,11,12,16,17,20,22,26,27,30,38,46,54,60,66,73,76,80]
+pdbAtomIndex = 1
+pdbAtomName = 3
+pdbResidueName = 5
+pdbChain = 6
+pdbResidueIndex = 7
+pdbAtomCoords = (10, 11, 12)
+pdbOccupancy = 13
+pdbBeta = 14
+pdbSA = 15
 
-regexpWater = re.compile(
-"HETATM([\d\s]{5})  O  .HOH [\w][\d\s]{4}.\s{3}([\d\.\s]{8})([-\d\.\s]{8})([-\d\.\s]{8}).*")
-
-pdbFormat = "%7s%5d%4s %3s%1s%4d %8.3f%8.3f%8.3f%6.2f%6.2f    "
+pdbFormat = "%4s  %5d %4s %3s %1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f              \n"
 
 #Sequence Reader
 regexpSeq = re.compile("SEQRES[\s]*[\d]*[\s]*[\w]*[\s]*[\d]*[\s]*(.*)")
@@ -56,16 +49,16 @@ class Atom:
       if(self.type in backbone):
          self.backbone = True
       self.index = atomIndex
-      self.ba = beta
+      self.beta = beta
       self.occ = occupancy
       try:
-         if(atomType == "HOH"):
-            self.sig = OPLSSigmas[atomType]
+         if(self.type == "HOH"):
+            self.sig = OPLSSigmas[self.type]
          else:
-            self.sig = OPLSSigmas[atomType[0]]
+            self.sig = OPLSSigmas[self.type[0]]
       except KeyError:
          self.sig = 0
-         print "Warning: could not find atom type for %s" % atomType
+         print "Warning: could not find atom type for \"%s\"" % self.type
 
    def __str__(self):
       return("Type: \"%s\"; Index: %03d; Coordinates: (%05.3f, %05.3f, %05.3f)" % (self.type, self.index, self.coord[0], self.coord[1], self.coord[2]))
@@ -75,6 +68,14 @@ class Atom:
 
    def getSA(self):
       return self.sa
+
+   def isHeavy(self):
+      if(self.type[0] == "H"):
+         return False
+      return True
+   
+   def setBeta(self, beta):
+      self.beta = beta
 
    def distance(self, otherAtom):
       return math.sqrt(self.distanceSqr(otherAtom))
@@ -275,6 +276,7 @@ class Protein:
         self.id = ""
         self.chains = None
         self.seq = []
+        self.center = 0
         
     def __len__(self):
         return len(self.residues)
@@ -349,8 +351,16 @@ class Protein:
     def getWaterNumber(self):
        return len(self.waters)
 
-    def getResidues(self):
-        return self.residues
+    def getResidues(self, chain = ""):
+       if(chain == ""):
+          return self.residues
+       chainResidues = []
+       for r in self.residues:
+          if(r.getChain() == chain):
+             chainResidues.append(r)
+       return chainResidues
+       
+    
 
     def getResidue(self, rindex, chain):
        rindex = self.getResidueIndex(rindex, chain)
@@ -379,13 +389,14 @@ class Protein:
               
 
 #this ouptputs a file of all the atom positions, defaults to only C-alpha
-    def writeXYZAtoms(self, filename, CAOnly=True):
+    def writeXYZAtoms(self, filename, CAOnly=True, beta=False):
        lines = []
        for r in self.residues:
           for a in r.getAtoms():
              if(not CAOnly or a.getType() == "CA"):
-                lines.append(a.printCoord())
-                lines.append("\n")
+                if((beta and a.getBeta() == beta) or not beta):
+                   lines.append(a.printCoord())
+                   lines.append("\n")
        with open(filename, 'w') as f:
           f.writelines(lines)
              
@@ -458,7 +469,35 @@ class Protein:
 
        with open(filename, 'w') as f:
           f.writelines(lines)
-          
+
+    def writePDB(self, filename):
+       with open(filename, 'w') as f:
+          for r in self.residues:
+             for a in r.getAtoms():
+                f.write(pdbFormat % ("ATOM", a.getIndex(), a.getType(), r.getType(), r.getChain(), \
+                                        r.getIndex(), a.getCoord()[0], a.getCoord()[1], a.getCoord()[2],\
+                                        a.getOccupancy(), a.getBeta()))
+       
+
+    def getCenter(self):
+       if(self.center != 0):
+          return self.center
+       else:
+          self.center = self._calculateCenter()
+          return self.center
+
+    def centerProtein(self):
+       center = self.getCenter()
+       for r in self.residues:
+          for a in r.getAtoms():
+             a.coord = tuple([x - y for x,y in zip(a.coord, center)])
+       self.center = [0,0,0]
+
+    def _calculateCenter(self):
+       center = [0,0,0]
+       for r in self.residues:
+          center = [x + y for x,y in zip(center, r.getCA().getCoord())]
+       return [x / len(self) for x in center]
           
           
 
@@ -551,6 +590,23 @@ class sqMatrix:
     def setRow(self, row, array):
         self.matrix[row:(row + dim)] = array
 
+
+def _slices(s, indices):
+    position = 0
+    for next in indices:
+        yield s[position:next]
+        position = next
+
+def _readPDBLine(line):
+   sliced = list(_slices(line, pdbSliceIndices))
+   result = {'atomIndex':int(sliced[pdbAtomIndex]), 'atomName':sliced[pdbAtomName].strip(),
+             'residueName':sliced[pdbResidueName].strip(), 'chain':sliced[pdbChain].strip(),
+             'residueIndex':int(sliced[pdbResidueIndex]), 
+             'atomCoords':[float(x) for x in [sliced[x] for x in pdbAtomCoords]],
+             'occupancy':float(sliced[pdbOccupancy]), 'beta':float(sliced[pdbBeta]),
+             'SA':(0 if sliced[pdbSA] == "     "  else float(sliced[pdbSA]))}
+   return result
+
 def readDSSP(dsspfile, protein):
 
     with open(dsspfile, "r") as f: #open the file
@@ -586,29 +642,30 @@ def readProtein(pdbfile, dsspfile=""):
 
     with open(pdbfile, "r") as f:  #open the file
         for line in f.readlines():       #read file line by line
-            m = regexp.match(line)       #matches the regular expression line by line
 
-            if(m): 
-                proteinnum[0] = int(m.group(5))  #assign current residue number
-                atomn = atomn+1
-                if(proteinnum[0] != proteinnum[1]):  #check residue number              
-                    currentR = Residue()               #initialize a new residue
-                    proteinnum[1] = proteinnum[0]        #assign new residue number
-                    #NOTE: I've switched to fixed width for the residue number because sometimes a chain is missing, which cauese the number to split up so I've temporarily fixed this by simply using the fixed width format
-                    currentR.fromData([], m.group(3), m.group(4), int(line[22:26]))  #initialization
-                    prot.addResidue(currentR)              #add new residue to protein
-
+            if(line.startswith("ATOM")): 
+               #read the line
+               lineData = _readPDBLine(line)
+               proteinnum[0] = lineData['residueIndex']  #assign current residue number
+               atomn = atomn+1
+               if(proteinnum[0] != proteinnum[1]):  #check residue number              
+                  currentR = Residue()               #initialize a new residue
+                  proteinnum[1] = proteinnum[0]        #assign new residue number
+                  currentR.fromData([], lineData['residueName'], lineData['chain'], lineData['residueIndex'])  #initialization
+                  prot.addResidue(currentR)              #add new residue to protein
+                  
             
-                atoml = Atom()          #import the atom
-                atoml.fromData(((float(m.group(6)),float(m.group(7)),float(m.group(8)))), m.group(2), int(m.group(1)), float(m.group(9)), float(m.group(10)))
-                currentR.assignAtom(atoml)   #put current atom into current residue                
+               atoml = Atom()          #import the atom
+               atoml.fromData(tuple(lineData['atomCoords']), lineData['atomName'], lineData['atomIndex'],
+                               lineData['occupancy'], lineData['beta'])
+               currentR.assignAtom(atoml)   #put current atom into current residue                
             
-            else:
+            elif(line.startswith("HETATM")):
                #check if it is a water
-               m = regexpWater.match(line)
-               if(m):
+               lineData = _readPDBLine(line)
+               if(lineData['residueName'] == "HOH"):
                   atomw = Atom()
-                  atomw.fromData((float(m.group(2)), float(m.group(3)), float(m.group(4))), 'HOH', -1, 0, 0)
+                  atomw.fromData(tuple(lineData['atomCoords']), 'HOH', -1, 0, 0)
                   prot.addWater(atomw)
 
     if(dsspfile != ""):
@@ -620,7 +677,6 @@ def readProteinSeq(pdbfile):
     with open(pdbfile, "r") as f:
         for line in f.readlines():
             m = regexpSeq.match(line)
-
             if(m):
                for i in range(len(m.group(1).split())):
                     if m.group(1).split()[i] in conversion:
@@ -638,35 +694,38 @@ def readProteinSA(pdbfile, dsspfile=""):
 
     with open(pdbfile, "r") as f:  #open the file
         for line in f.readlines():       #read file line by line
-            m = regexpSA.match(line)       #matches the regular expression line by line
 
-            if(m): 
-                proteinnum[0] = int(m.group(5))  #assign current residue number
-                atomn = atomn+1
-                if(proteinnum[0] != proteinnum[1]):  #check residue number              
-                    currentR = Residue()               #initialize a new residue
-                    proteinnum[1] = proteinnum[0]        #assign new residue number
-                    currentR.fromData([], m.group(3), m.group(4), int(m.group(5)))  #initialization
-                    prot.addResidue(currentR)              #add new residue to protein
-
+            if(line.startswith("ATOM")): 
+               #read the line
+               lineData = _readPDBLine(line)
+               proteinnum[0] = lineData['residueIndex']  #assign current residue number
+               atomn = atomn+1
+               if(proteinnum[0] != proteinnum[1]):  #check residue number              
+                  currentR = Residue()               #initialize a new residue
+                  proteinnum[1] = proteinnum[0]        #assign new residue number
+                  currentR.fromData([], lineData['residueName'], lineData['chain'], lineData['residueIndex'])  #initialization
+                  prot.addResidue(currentR)              #add new residue to protein
+                  
             
-                atoml = Atom()          #import the atom
-                atoml.fromData(((float(m.group(6)),float(m.group(7)),float(m.group(8)))), m.group(2), int(m.group(1)), float(m.group(9)), float(m.group(10)))
-                try:
-                   atoml.setSA(float(m.group(11)))
-                except:
-                   print "Failure in reading"
-                   print m.groups()
-                   print line
-                   exit()
-                currentR.assignAtom(atoml)   #put current atom into current residue
-
-            else:
+               atoml = Atom()          #import the atom
+               atoml.fromData(tuple(lineData['atomCoords']), lineData['atomName'], lineData['atomIndex'],
+                               lineData['occupancy'], lineData['beta'])
+               try:
+                  atoml.setSA(lineData['SA'])
+               except:
+                  print "Failure in reading"
+                  print lineData
+                  print line
+                  exit()
+                  
+               currentR.assignAtom(atoml)   #put current atom into current residue                
+            
+            elif(line.startswith("HETATM")):
                #check if it is a water
-               m = regexpWater.match(line)
-               if(m):
+               lineData = _readPDBLine(line)
+               if(lineData['residueName'] == "HOH"):
                   atomw = Atom()
-                  atomw.fromData((float(m.group(2)), float(m.group(3)), float(m.group(4))), 'HOH', -1, 0, 0)
+                  atomw.fromData(tuple(lineData['atomCoords']), 'HOH', -1, 0, 0)
                   prot.addWater(atomw)
 
     if(dsspfile != ""):
@@ -677,7 +736,7 @@ def readProteinSA(pdbfile, dsspfile=""):
 
 def makePDB(var1, var2, pdbfile, outfile, chains):
 
-     #extract pdb name
+   #extract pdb name
    name = pdbfile.split(".")[0]
    index = 0
    res = ""
@@ -685,13 +744,14 @@ def makePDB(var1, var2, pdbfile, outfile, chains):
    with open(pdbfile, 'r') as p:
       with open(outfile, 'w') as o:
          for line in p.readlines():
-            m = regexp.match(line)
-            if(m and int(m.group(5)) < len(var1) and m.group(4) in chains):
-               index = int(m.group(5))
-               o.write(line[:54])
-               o.write("%6.2f" % var1[index])
-               o.write("%6.2f" % var2[index])
-               o.write(line[66:])
+            if(line.startswith("ATOM")):
+               lineData = _readPDBLine(line)
+               if(lineData['residueIndex'] < len(var1) and lineData['chain'] in chains):
+                  index = lineData['residueIndex']
+                  o.write(line[:54])
+                  o.write("%6.2f" % var1[index])
+                  o.write("%6.2f" % var2[index])
+                  o.write(line[66:])
             else:
                o.write(line)
 
@@ -710,10 +770,6 @@ def convRID(r):
 
 def chiNumber(resType):
    return len(chis[resType])
-
-def setCutoff(cut):
-   global surfCutoff
-   surfCutoff = cut
 
 def isSurf(ratio):
    global surfCutoff

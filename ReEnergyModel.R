@@ -1,14 +1,12 @@
-library(alabama)
-library(KernSmooth)
 source("SQLShareLib.R")
 
 surfCutoff <- 0.3
 kuhnLength <- 1.83
 surfaceRoughness <- 3.5
 sawExponent <- 3/5.
-confinementExponent <- 3.25
-ellipExponent <- 1.6
-charaLength <- 46.3    #These numbers are subject to change
+closeConfinementExponent <- 3.25
+openConfinementExponent <- 3
+closeCharaLength <- 47.9    #These numbers are subject to change
 openCharaLength <- 79.5
 
 
@@ -23,95 +21,92 @@ groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(gr
 
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, groDistForm, derivative=FALSE, dataset1="ecoli", dataset2="assist") {
+proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivative=FALSE, dataset="ecoli_nogaps", contactDataset="ecoli", contactUsername="wenjunh") {
+
+
+  #set up the exponents and distribution
+  groDistForm <- "GroEL_Close"
+  confinementExponent <- closeConfinementExponent
+  charaLength <- closeCharaLength
   
-  gyration <- getGyrationRadii(dataset1, username)
+  if(groForm == "Open") {
+    groDistForm <- "GroEL_Open"
+    confinementExponent <- openConfinementExponent
+    charaLength <- openCharaLength
+  }
+
+  if(is.null(groDistribution)) {
+    groDistribution <- groDist[groDistForm,]
+  }
+
+  #get the variables needed for the equations
+  gyration <- getGyrationRadii(dataset, username)
 
   timeFraction <- getContactFractionTime(gyration, surfaceRoughness, charaLength)
   
   shapeFactors <- getShapeFactor(gyration)
   
-  interactionMatrix <- getInteractionEnergy(dataset1, username)
+  interactionMatrix <- getInteractionEnergy(contactDataset, contactUsername)
 
 
+  #get the residue fractions
   cat("Fetching Data...")
   
   cutoff <- surfCutoff  #Set the surface cutoff
-  psurf <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
-  psurfassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
+  psurf <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
+
 
   resNumbersFold <- apply(psurf, MARGIN=1, sum)
   psurf <- t(apply(psurf, MARGIN=1, function(x) {x / sum(x)}))
   
   cutoff <- -1.0  #Set the unfolded cutoff
-  punfold <- fetchAllSurfResidues(dataset1, cutoff, normalize=FALSE, username)
+  punfold <- fetchAllSurfResidues(dataset, cutoff, normalize=FALSE, username)
 
   resNumbersUnfold <- apply(punfold, MARGIN=1, sum)
   punfold <- t(apply(punfold, 1, function(x) { x / sum(x)}))
-  
-  punfoldassist <- fetchAllSurfResidues(dataset2, cutoff, normalize=FALSE, username)
+ 
 
   cat(" Done!\n")
 
-  if (derivative == FALSE) {
-    #Generate ddG matrix
-    cat("Processing Dataset...")
-    energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
+  
+  cat("Processing Dataset...")
+
+  #calculate the energies from the distributions
+  
+  energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
+  
+  for(i in 1:nrow(psurf)) {
+    cat(paste("\rProcessing Dataset...", i,"/", nrow(psurf)))
     
-    for(i in 1:nrow(psurf)) {
-      cat(paste("\rProcessing Dataset...", i,"/", nrow(psurf)))
-      
-      PDBID <- rownames(gyration)[i]
-
-      energy[i,"Efold"] <-
-        getContactEnergy(psurf[PDBID,],
-                         groDist[groDistForm,],
-                         interactionMatrix,
-                         resNumbersFold[PDBID])
-      energy[i,"Eunfold"] <-
-        getContactEnergy(punfold[PDBID, ],
-                         groDist[groDistForm,],
-                         interactionMatrix,
-                         resNumbersUnfold[PDBID] * gyration[i,"Rf"] / gyration[i, "Rg"])
-    }
-    cat("\n")
+    PDBID <- rownames(gyration)[i]
     
-    #calculate the final DDG vector
-    ddG <- rep(0, nrow(energy))
-    names(ddG) <- rownames(energy)
-    
-    for (i in 1:length(ddG)) {
-      ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
-    }
-
-    #put the various values into a dataframe
-    allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
-    
-    return(allData)
-  } else {
-    #method to get the derivative of the ddG and make plot of that
-    cat("Calculating Derivative...")
-
-    proteinResDev <- matrix(0,nrow(psurf),ncol(psurf)) #used matrix here because we will do matrix multiplication on that later
-    rownames(proteinResDev) <- rownames(psurf)
-    colnames(proteinResDev) <- colnames(psurf)
-
-    for (i in 1:nrow(proteinResDev)) {
-      #calculate the prefactor of the energy matrix
-      temp <- -timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * punfold[i,] + timeFraction[,"Tf"] * shapeFactors[i,"Af"] * psurf[i,]  
-      proteinResDev[i,] <- as.matrix(temp) %*% interactionMatrix
-      }
-
-    resDev <- apply(proteinResDev, MARGIN=2, FUN=mean)
-
-    cat("Done! \n")
-    
-    #make plot
-    cairo_pdf('Ecoli_ResDiffDevFull.pdf', width=8, height=5)
-    par(family='LMSans10', cex.axis=0.65, ps=11)
-    barplot(resDev, col='gray')#, ylim=c(-1.0,2.0))
-    graphics.off()
+    energy[i,"Efold"] <-
+      getContactEnergy(psurf[PDBID,],
+                       groDistribution,
+                       interactionMatrix,
+                       resNumbersFold[PDBID])
+    energy[i,"Eunfold"] <-
+      getContactEnergy(punfold[PDBID, ],
+                       groDistribution,
+                       interactionMatrix,
+                       resNumbersUnfold[PDBID] * gyration[i,"Rf"] / gyration[i, "Rg"])
   }
+  cat("\n")
+
+  print(energy)
+  
+  #calculate the final DDG vector
+  ddG <- rep(0, nrow(energy))
+  names(ddG) <- rownames(energy)
+  
+  for (i in 1:length(ddG)) {
+    ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
+  }
+  
+ #put the various values into a dataframe
+  allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
+    
+  return(allData)
 } 
 
 #get the general gyration radius (Rg = N^nv*l) (Rf = sqrt(lambda_x^2+lambda_y^2+lambda_z^2))
@@ -324,11 +319,70 @@ getSurfResFirstDev <- function(username, dataset) {
   cat("groClose_ResFirstDev.pdf has been added to your current directory\n")
 }
 
+#Below are used for actual program
+ddG1 <- proteinEnergyCycle("whitead", "Close", derivative=FALSE)
+ddG2 <- proteinEnergyCycle("whitead", "Open", derivative=FALSE)
 
+ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset="assist")
+ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="assist")
 
-#Below are used for actual program 
-ddG1 <- proteinEnergyCycle("wenjunh", "GroEL_Close", derivative=FALSE)
-ddG2 <- proteinEnergyCycle("wenjunh", "GroEL_Open")
+#Remove all proteins that should not fit within the cavity
+ddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
+ddG2.trunc <- ddG2[ddG2$Rf < closeCharaLength,]
+
+#make plot of two plots
+
+cairo_pdf("entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
+plot(-ddG1.entropy, ddG1.trunc$ddG + ddG1.entropy, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-50, 0), cex=0.75, lwd=0.5, col="gray25")
+lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-50,0), ylim=c(-50, 0))
+graphics.off()
+
+cairo_pdf("open_close_entropy_enthalpy.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
+ddG2.entropy <- sapply(ddG2.trunc$Rg, FUN=function(x) { (x / openCharaLength)^openConfinementExponent})
+plot(ddG2.entropy - ddG1.entropy, (ddG1.trunc$ddG - ddG2.trunc$ddG) + (ddG1.entropy - ddG2.entropy), xlab=expression(paste(-T * Delta * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * Delta * U / kT)), xlim=c(-20,5), ylim=c(-25, 40), cex=0.75, lwd=0.5, col="gray25")
+lines(seq(150,-150), seq(-150, 150), col="light gray", lty=2, xlim=c(-20,5), ylim=c(-25, 40))
+graphics.off()
+
+cairo_pdf("open_close_1.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+plot(ddG1.trunc$ddG, ddG2.trunc$ddG, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-100, 25), cex=0.75, lwd=0.5, col="gray25")
+points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-100, 25), pch=19, cex=0.75, lwd=0.5, col="red")
+lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-100,25), ylim=c(-100, 25))
+graphics.off()
+
+print(as.double(sum(ddG1.trunc$ddG < ddG2.trunc$ddG)) / nrow(ddG1.trunc))
+
+cairo_pdf("open_close_2.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+hist(ddG1.trunc$ddG - ddG2.trunc$ddG, xlab=expression(paste(Delta * Delta * Delta * A, " [KT]")), main="", border="black", col="dark gray")
+graphics.off()
+
+#Now, find the optimal GroEL distribution
+propDists <- matrix(rep(0,20**2), nrow=20)
+propDists[sapply(1:20, FUN=function(x) {x + (x - 1) * 20})] <- 1
+propDists <- data.frame(propDists)
+colnames(propDists) <- colnames(groDist)
+
+propddG <- rep(0,20)
+names(propddG) <- colnames(propDists)
+
+for(i in 1:20) {
+
+  ddG <- proteinEnergyCycle("whitead", "Close", groDistribution=propDists[i,])
+  propddG[i] <- median(ddG$ddG)
+  
+}
+
+print(propddG)
+
+cairo_pdf("optim_groeol.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.55, fg="dark gray")
+barplot(propddG, names.arg=aalist.sh, border="black", xlab="Residue", ylab=expression(Delta * Delta * A))
+graphics.off()
 
 
 #getSurfResFirstDev("wenjunh","ecoli")
