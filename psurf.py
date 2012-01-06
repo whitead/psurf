@@ -281,8 +281,8 @@ class Protein:
     def __len__(self):
         return len(self.residues)
 
-    def setType(self, pid):
-        self.id = pid
+    def setName(self, name):
+        self.name = name
 
     def getGapCount(self):
        gaps = 0
@@ -299,7 +299,7 @@ class Protein:
        return gaps
        
     def getName(self):
-       return self.id
+       return self.name
 
     def getChains(self):
        if(self.chains == None):
@@ -337,9 +337,9 @@ class Protein:
 
        return scounts
 
-    def fromData(self, residues, pid):
+    def fromData(self, residues, name):
         self.residues = residues
-        self.id = pid
+        self.name = name
 
     def addResidue(self, r):
         self.residues.append(r)
@@ -409,7 +409,7 @@ class Protein:
 
        for r in self.residues:
           for a in r.getAtoms():
-             lines.append(self.id)
+             lines.append(self.name)
              lines[-1] += "," + str(a.getIndex())
              lines[-1] += "," + a.getType()
              lines[-1] += "," + r.getType()
@@ -439,7 +439,7 @@ class Protein:
           lines.append("pdb_id, res_index, res_type, res_type_sh, chain, res_surface_area, res_surface_area_ratio, phi, psi, structure\n")
 
        for i,r in zip(range(len(self.residues)), self.residues):
-          lines.append(self.id)
+          lines.append(self.name)
           lines[-1] += ","  + str(r.getIndex())
           lines[-1] += "," + r.getType()
           lines[-1] += "," + convRID(r.getType())
@@ -604,7 +604,11 @@ def _readPDBLine(line):
              'residueIndex':int(sliced[pdbResidueIndex]), 
              'atomCoords':[float(x) for x in [sliced[x] for x in pdbAtomCoords]],
              'occupancy':float(sliced[pdbOccupancy]), 'beta':float(sliced[pdbBeta]),
-             'SA':(0 if sliced[pdbSA] == "     "  else float(sliced[pdbSA]))}
+             'SA':0}
+   try:
+      result['SA'] = float(sliced[pdbSA])
+   except ValueError:
+      pass
    return result
 
 def readDSSP(dsspfile, protein):
@@ -635,7 +639,7 @@ def readProtein(pdbfile, dsspfile):
 def readProtein(pdbfile, dsspfile=""):
 
     prot = Protein()
-    prot.setType(pdbfile.split("/")[-1].split(".")[0])
+    prot.setName(pdbfile.split("/")[-1].split(".")[0])
     currentR = Residue()
     proteinnum = [0,-1]
     atomn = 0
@@ -687,7 +691,7 @@ def readProteinSeq(pdbfile):
 def readProteinSA(pdbfile, dsspfile=""):
 
     prot = Protein()
-    prot.setType(pdbfile.split("/")[-1].split(".")[0])
+    prot.setName(pdbfile.split("/")[-1].split(".")[0])
     currentR = Residue()
     proteinnum = [0,-1]
     atomn = 0
