@@ -13,7 +13,6 @@ uci <- apply(ufracs, MARGIN=2, FUN=function(x) matrix(c(quantile(x, c(0.975)) - 
 tiff("ecolidist_ci.tiff", width=3.3*500, height=2.5*500, pointsize=8, res=500)
 par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
 yy <- matrix(c(ems,ums), byrow=T, nrow=2)
-print(yy)
 ee.up <- matrix(c(eci[1,], uci[1,]), byrow=T, nrow=2)
 ee.low <- matrix(c(eci[2,], uci[2,]), byrow=T, nrow=2)
 barx <- barplot(yy, col=c("gray90", "gray30"), main="", xlab="Amino Acid", ylab="Density", beside=T, names.arg=aalist.sh,ylim = c(0.00,0.14))#ylim=c(0,ee.up[which.max(yy)] + max(yy)))
@@ -30,7 +29,6 @@ tiff("ecolidist.tiff", width=3.3*500, height=2.5*500, pointsize=8, res=500)
 par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
 yy <- matrix(c(ems,ums), byrow=T, nrow=2)
 ee <- matrix(c(sqrt(evs / nrow(efracs)), sqrt(uvs / nrow(ufracs))), byrow=T, nrow=2)
-print(ee)
 barx <- barplot(yy, col=c("gray90", "gray30"), main="", xlab="Amino Acid", ylab="Density", beside=T, names.arg=aalist.sh,ylim = c(0.00,0.14))#ylim=c(0,ee[which.max(yy)] + max(yy)))
 error.bar(barx, yy, ee, length=0.01)
 legend("topright", col=c("gray90", "gray30"), legend=c("E. Coli Surface", "E. Coli All"), ncol=1, pch=15)
@@ -97,8 +95,27 @@ hspDist[1,] <- apply(psurf, MARGIN=2, FUN=mean)
 
 cairo_pdf('HSP_Protein_Dist.pdf',width=5.5, height=2.58, pointsize=9)
 par(family='LMSans10', cex.axis=0.75)
-barplot(hspDist, beside=TRUE, col=c('gray90','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
+barplot(hspDist, beside=TRUE, col=c('gray90','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,ylab="Fraction")
 legend("topright", col=c('gray90','gray75','gray60','gray45','gray30','gray15'), legend=c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic HSP"), pch=rep(15,6), cex=0.8)
 graphics.off()
 
+
+#plot ##--supplement: plot of E.Coli distribution with different surface cutoffs
+SurfCutOff <- c(0,0.1,0.2,0.3,0.4,0.5)
+
+psurfplot <- matrix(0,6,20)
+rownames(psurfplot) <- c("All","10","20","30","40","50")
+colnames(psurfplot) <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
+
+for (i in 1:nrow(psurfplot)) {
+  temp <- fetchAllSurfResidues("ecoli",SurfCutOff[i],normalize=TRUE,"wenjunh")
+  for (j in 1:ncol(temp)) {
+    psurfplot[i,j] <- mean(temp[,j])
+  }
+}
+
+cairo_pdf("ecoli_cutoff.pdf",width=8,height=5)
+barplot(psurfplot,beside=T,col=c('blue','gray75','gray60','gray45','gray30','gray15'),ylim=c(0,0.14),ylab="Fraction")
+legend("topright",col=c('blue','gray75','gray60','gray45','gray30','gray15'),legend=c("All","0.1 Cutoff","0.2 Cutoff","0.3 Cutoff","0.4 Cutoff","0.5 Cutoff"),pch=15)
+dev.off()
 
