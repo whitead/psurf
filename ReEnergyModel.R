@@ -11,7 +11,7 @@ openCharaLength <- 79.5
 
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
-sql <- paste("select * FROM [wenjunh@washington.edu].[groel_insurfres_count.csv]")
+sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
 rawData <- fetchdata(sql)
 groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][[3]][1]))
 groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=2, byrow=T)
