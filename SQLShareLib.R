@@ -174,7 +174,6 @@ fetchAllSurfResidues <- function(dataset, cutoff, normalize=FALSE, username=FALS
 
   sql = paste("SELECT DISTINCT pdb_id FROM [", username, "@washington.edu].[",dataset, "_2.csv] WHERE res_surface_area_ratio > ", cutoff,
     " AND res_surface_area_ratio IS NOT NULL", sep="")
-  
   plist <- fetchdata(sql)
   pdbids <- rep("", length(plist[[1]]) - 1)
   for(i in 2:length(plist[[1]])) {
@@ -411,10 +410,7 @@ fetchResNum <- function(dataset, username=FALSE) {
 }
 
 #Get the inner surface list of the HSP proteins
-fetchHSPResCount <- function(dataset, Location, username=FALSE) {
-  if (username == FALSE) {
-    username = myUsername
-  }
+fetchHSPResCount <- function(dataset, location, username=myUsername, surfCutoff=cutoff) {
 
   sql <- paste("SELECT DISTINCT pdb_id FROM [", username, "@washington.edu].[",dataset, "_2.csv]", sep="")
   pdblist <- fetchdata(sql)
@@ -423,7 +419,7 @@ fetchHSPResCount <- function(dataset, Location, username=FALSE) {
     pdbids[i-1] <- pdblist[[1]][[i]][1]
   }
 
-  sql <- paste("SELECT pdb_od, res_type, location FROM [", username, "@washington.edu].[", dataset, "_2.csv]​ WHERE location='", Location,"'", sep="")
+  sql <- paste("SELECT pdb_id, res_type, location FROM [", username, "@washington.edu].[", dataset, "_2.csv]​ WHERE res_surface_area_ratio > ", surfCutoff," AND location='", location,"'", sep="")
   reslist <- fetchdata(sql)
   residueList <- matrix("",length(reslist[[1]])-1,2)
   colnames=c("pdb_id","res_type")

@@ -161,7 +161,7 @@ eids <- fetchPDBIDs("eh2_w_nogaps")
 #Make charge histograms
 cols <- colorRampPalette(c("red","white","blue"))
 datasets <- c("cph2_w_nogaps", "eh2_w_nogaps", "h2_w_nogaps")
-breakNum <- c(40,20,10)
+breakNum <- c(20,20,40)
 for(i in 1:length(datasets)) {
   d <- datasets[i]
   cat(paste("loading", d, "charge densities\n"))
@@ -174,8 +174,8 @@ for(i in 1:length(datasets)) {
   png(paste(d,"_charges.png",sep=""), width=3.3*500, height=3.3*500, pointsize=10, res=500)
   par(family="LMSans10", cex=0.8)
   absmax <- max(cdens, -cdens)
-  brs <- seq(from = -absmax, to = absmax, length.out=10)
-  hist(cdens, breaks=brs, col=cols(10), xlab="Charge Desnsity", family="LMSans10", main="") 
+  brs <- seq(from = -absmax, to = absmax, length.out=breakNum[i])
+  hist(cdens, breaks=brs, col=cols(breakNum[i]), xlab="Charge Desnsity", family="LMSans10", main="") 
   graphics.off()
 
   cairo_pdf(paste(d,"_charges.pdf",sep=""), width=3.42, height=2.58, pointsize=10)
