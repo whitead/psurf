@@ -349,7 +349,7 @@ cairo_pdf("open_close_entropy_enthalpy.pdf", width=3.42, height=2.58, pointsize=
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
 ddG2.entropy <- sapply(ddG2.trunc$Rg, FUN=function(x) { (x / openCharaLength)^openConfinementExponent})
-plot(0, 0, xlab=expression(paste(-T * Delta * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * Delta * U / kT)), xlim=c(-20,5), ylim=c(-50, 40), col="white")
+plot(0, 0, xlab=expression(paste(-T * Delta * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * Delta * U / kT)), xlim=c(-30,5), ylim=c(-80, 10), col="white")
 abline(v=0, lty=1, col="light gray", lwd=0.5, xlim=c(-20, 5))
 abline(h=0, lty=1, col="light gray", lwd=0.5, xlim=c(-20, 5))
 points(ddG2.entropy - ddG1.entropy, (ddG1.trunc$ddG - ddG2.trunc$ddG) + (ddG1.entropy - ddG2.entropy), xlim=c(-20,5), ylim=c(-50, 40), cex=0.75, lwd=0.5, col="gray25")
