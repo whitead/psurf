@@ -5,10 +5,9 @@ kuhnLength <- 1.83
 surfaceRoughness <- 3.5
 sawExponent <- 3/5.
 closeConfinementExponent <- 3.25
-openConfinementExponent <- 3
+openConfinementExponent <- 5/3. # this number comes frmo De gennes on page 49 , not sure why but I used to have 1.5
 closeCharaLength <- 47.9    #These numbers are subject to change
-openCharaLength <- 79.5
-
+openCharaLength <- 36.3
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
 sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
@@ -72,7 +71,6 @@ proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivati
   cat("Processing Dataset...")
 
   #calculate the energies from the distributions
-  
   energy <- empty.df(rnames=rownames(gyration), cnames=c("Efold","Eunfold"))
   
   for(i in 1:nrow(psurf)) {
@@ -93,7 +91,6 @@ proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivati
   }
   cat("\n")
 
-  print(energy)
   
   #calculate the final DDG vector
   ddG <- rep(0, nrow(energy))
@@ -102,10 +99,8 @@ proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivati
   for (i in 1:length(ddG)) {
     ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
   }
-  
  #put the various values into a dataframe
-  allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
-    
+  allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], resNumber=gyration[,"resNumber"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
   return(allData)
 } 
 
@@ -117,17 +112,19 @@ getGyrationRadii <- function(dataset, username) {
   #get principal components
   lambda <- fetchGyration(dataset,username)
   #make data frame with two columns
-  gyrationRadii <- empty.df(cnames=c("Rf", "Rg", "lambda.x", "lambda.y", "lambda.z"), rnames=rownames(lambda))
+  gyrationRadii <- empty.df(cnames=c("resNumber", "Rf", "Rg", "lambda.x", "lambda.y", "lambda.z"), rnames=rownames(lambda))
   
   for (i in 1:nrow(gyrationRadii)) {
+    gyrationRadii[i, "resNumber"] <- resNumbers[i]
     gyrationRadii[i, "Rg"] <- (resNumbers[i]^sawExponent)*kuhnLength #equation for Rg
     #convert the principal components into numbers
-    gyrationRadii[i, 3:5] <- sapply(lambda[i,], sqrt)
+    gyrationRadii[i, 4:6] <- sapply(lambda[i,], sqrt)
     #calculate the empirical radius of gyration from the PCs.
-    gyrationRadii[i, "Rf"] <- sqrt(sum(gyrationRadii[i, 3:5]^2))
+    gyrationRadii[i, "Rf"] <- sqrt(sum(gyrationRadii[i, 4:6]^2))
 
   }
 
+  
   return(gyrationRadii)
 }
 
@@ -323,35 +320,49 @@ getSurfResFirstDev <- function(username, dataset) {
 ddG1 <- proteinEnergyCycle("whitead", "Close", derivative=FALSE)
 ddG2 <- proteinEnergyCycle("whitead", "Open", derivative=FALSE)
 
-ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset="assist")
-ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="assist")
+
+ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset="assist_nogaps")
+ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="assist_nogaps")
 
 #Remove all proteins that should not fit within the cavity
-ddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
+zddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
 ddG2.trunc <- ddG2[ddG2$Rf < closeCharaLength,]
 
 #make plot of two plots
 
+#setup color gradient, just in case
+colorNumber <- 100
+cuts <- cut(ddG1.trunc$resNumber, colorNumber, labels=F)
+colorGrad <- colorRampPalette(c("black", "blue", "purple", "red"), space="Lab")(colorNumber)[cuts]
+
 cairo_pdf("entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
-plot(-ddG1.entropy, ddG1.trunc$ddG + ddG1.entropy, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-50, 0), cex=0.75, lwd=0.5, col="gray25")
+plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-50, 0), col="white")
+abline(v=0, lty=1, col="light gray", lwd=0.5)
+abline(h=0, lty=1, col="light gray", lwd=0.5)
 lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-50,0), ylim=c(-50, 0))
+points(-ddG1.entropy, ddG1.trunc$ddG + ddG1.entropy, xlim=c(-50,0), ylim=c(-50, 0), cex=0.75, lwd=0.5, col="gray25")
 graphics.off()
 
 cairo_pdf("open_close_entropy_enthalpy.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
 ddG2.entropy <- sapply(ddG2.trunc$Rg, FUN=function(x) { (x / openCharaLength)^openConfinementExponent})
-plot(ddG2.entropy - ddG1.entropy, (ddG1.trunc$ddG - ddG2.trunc$ddG) + (ddG1.entropy - ddG2.entropy), xlab=expression(paste(-T * Delta * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * Delta * U / kT)), xlim=c(-20,5), ylim=c(-25, 40), cex=0.75, lwd=0.5, col="gray25")
-lines(seq(150,-150), seq(-150, 150), col="light gray", lty=2, xlim=c(-20,5), ylim=c(-25, 40))
+plot(0, 0, xlab=expression(paste(-T * Delta * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * Delta * U / kT)), xlim=c(-30,5), ylim=c(-80, 10), col="white")
+abline(v=0, lty=1, col="light gray", lwd=0.5, xlim=c(-20, 5))
+abline(h=0, lty=1, col="light gray", lwd=0.5, xlim=c(-20, 5))
+points(ddG2.entropy - ddG1.entropy, (ddG1.trunc$ddG - ddG2.trunc$ddG) + (ddG1.entropy - ddG2.entropy), xlim=c(-20,5), ylim=c(-50, 40), cex=0.75, lwd=0.5, col="gray25")
 graphics.off()
 
 cairo_pdf("open_close_1.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
-plot(ddG1.trunc$ddG, ddG2.trunc$ddG, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-100, 25), cex=0.75, lwd=0.5, col="gray25")
-points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-100, 25), pch=19, cex=0.75, lwd=0.5, col="red")
+plot(0,0, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-50, 50), pch=0, type="p", col="white")
 lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-100,25), ylim=c(-100, 25))
+abline(v=0, lty=1, col="green", lwd=0.5)
+abline(h=0, lty=1, col="blue", lwd=0.5)
+points(ddG1.trunc$ddG, ddG2.trunc$ddG, cex=0.75, lwd=0.5, col="gray25", xlim=c(-100, 25), ylim=c(-100, 25))
+points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-100, 25), pch=19, cex=0.75, lwd=0.5, col="red")
 graphics.off()
 
 print(as.double(sum(ddG1.trunc$ddG < ddG2.trunc$ddG)) / nrow(ddG1.trunc))
@@ -360,6 +371,39 @@ cairo_pdf("open_close_2.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 hist(ddG1.trunc$ddG - ddG2.trunc$ddG, xlab=expression(paste(Delta * Delta * Delta * A, " [KT]")), main="", border="black", col="dark gray")
 graphics.off()
+
+print(paste("Median close:", median(ddG1.trunc$ddG)))
+print(paste("Median diff:", median(ddG1.trunc$ddG - ddG2.trunc$ddG)))
+
+cairo_pdf("open_close_3.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+plot(ddG1.trunc$Rf, ddG2.entropy - ddG1.entropy, xlab=expression(paste(R[g], "[Å]")), ylab=expression(paste(Delta * Delta * Delta * A, " [kT]")), cex=0.75, lwd=0.5, col="red", ylim=range(ddG1.trunc$ddG - ddG2.trunc$ddG))
+
+points(ddG1.trunc$Rf, ddG1.trunc$ddG - ddG2.trunc$ddG, lwd=0.5, col="gray25",cex=0.75)
+graphics.off()
+
+cairo_pdf("open_close_4.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+plot(ddG1.trunc$Rf, ddG1.trunc$ddG, xlab=expression(paste(R[g], "[Å]")), ylab=expression(paste("Close ", Delta * Delta * A, " [kT]")), cex=0.75, lwd=0.5, col=colorGrad, ylim=range(ddG1$ddG))
+
+
+cairo_pdf("open_close_5.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+plot(ddG2$Rf, ddG2$ddG, xlab=expression(paste(R[g], "[Å]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), cex=0.75, lwd=0.5, col="dark gray", ylim=range(ddG2$ddG))
+graphics.off()
+
+#Same as open_close_1 with color gradient for number of residues
+cairo_pdf("open_close_6.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+plot(0,0, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-50, 50), pch=0, type="p", col="white")
+lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-100,25), ylim=c(-100, 25))
+abline(v=0, lty=1, col="blue", lwd=0.5)
+abline(h=0, lty=1, col="green", lwd=0.5)
+points(ddG1.trunc$ddG, ddG2.trunc$ddG, cex=0.75, lwd=0.5, xlim=c(-100, 25), ylim=c(-100, 25), col=colorGrad)
+points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-100, 25), pch=19, cex=0.75, lwd=0.5, col="orange")
+graphics.off()
+
+
 
 #Now, find the optimal GroEL distribution
 propDists <- matrix(rep(0,20**2), nrow=20)
@@ -371,7 +415,7 @@ propddG <- rep(0,20)
 names(propddG) <- colnames(propDists)
 
 for(i in 1:20) {
-
+ 
   ddG <- proteinEnergyCycle("whitead", "Close", groDistribution=propDists[i,])
   propddG[i] <- median(ddG$ddG)
   
@@ -381,7 +425,7 @@ print(propddG)
 
 cairo_pdf("optim_groeol.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.55, fg="dark gray")
-barplot(propddG, names.arg=aalist.sh, border="black", xlab="Residue", ylab=expression(Delta * Delta * A))
+barplot(propddG, names.arg=aalist.sh, border="black", xlab="Residue", ylab=expression(paste(Delta * Delta * A, "[kT]")))
 graphics.off()
 
 
