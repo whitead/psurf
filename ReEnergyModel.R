@@ -209,6 +209,7 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
 
+  
   #sum it
   contactMatrix <- sampleContacts(countMatrix, random=FALSE)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
@@ -338,7 +339,7 @@ colorGrad <- colorRampPalette(c("black", "blue", "purple", "red"), space="Lab")(
 cairo_pdf("entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
-plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-50, 0), col="white")
+plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * A / kT)), xlim=c(-50,0), ylim=c(-50, 0), col="white")
 abline(v=0, lty=1, col="light gray", lwd=0.5)
 abline(h=0, lty=1, col="light gray", lwd=0.5)
 lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-50,0), ylim=c(-50, 0))
