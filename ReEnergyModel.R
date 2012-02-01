@@ -6,8 +6,8 @@ surfaceRoughness <- 3.5
 sawExponent <- 3/5.
 closeConfinementExponent <- 3.25
 openConfinementExponent <- 5/3. # this number comes frmo De gennes on page 49 , not sure why but I used to have 1.5
-closeCharaLength <- 47.9    #These numbers are subject to change
-openCharaLength <- 36.3
+closeCharaLength <- 46.4    #These numbers are subject to change
+openCharaLength <- 29.96
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
 sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
@@ -373,6 +373,7 @@ hist(ddG1.trunc$ddG - ddG2.trunc$ddG, xlab=expression(paste(Delta * Delta * Delt
 graphics.off()
 
 print(paste("Median close:", median(ddG1.trunc$ddG)))
+print(paste("Median close per residue:", median(ddG1.trunc$ddG / ddG1.trunc$resNumber)))
 print(paste("Median diff:", median(ddG1.trunc$ddG - ddG2.trunc$ddG)))
 
 cairo_pdf("open_close_3.pdf", width=3.42, height=2.58, pointsize=8)
@@ -425,7 +426,9 @@ print(propddG)
 
 cairo_pdf("optim_groeol.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.55, fg="dark gray")
-barplot(propddG, names.arg=aalist.sh, border="black", xlab="Residue", ylab=expression(paste(Delta * Delta * A, "[kT]")))
+barplot(propddG, names.arg=aalist.sh, border="black", xlab="Residue", ylab=expression(paste("Optimized ",Delta * Delta * A, "[kT]")))
+abline(h=median(ddG1.trunc$ddG), col="black", lty=2)
+legend("topleft", c("True Median", expression(paste(Delta * Delta * A," Closed"))), lty=c(2,0), col=c("black", "white"), text.col="black", cex=0.8)
 graphics.off()
 
 

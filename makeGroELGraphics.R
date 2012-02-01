@@ -68,7 +68,7 @@ for (i in 1:nrow(hspRawCount)) {
 hspRawCount <- as.matrix(hspRawCount)
 
 hspDist <- matrix(0,nrow(hspRawCount)+1, ncol(hspRawCount))
-rownames(hspDist) <- c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT")
+rownames(hspDist) <- c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Yeast CCT")
 colnames(hspDist) <- colnames(hspRawCount)
 
 hspDist[2,] <- hspRawCount["1SX4",]
@@ -78,7 +78,8 @@ hspDist[5,] <- hspRawCount["2CG9",]
 hspDist[6,] <- hspRawCount["3P9D",]
 
 #various statistics
-print(sum(hspRawCount["3KFB", c("ASP", "GLU", "ARG", "HIS")]))
+print(sum(hspRawCount["1WE3", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
+print(sum(hspRawCount["1SX4", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
 
 cutoff <- 0.3
 psurf <- fetchAllSurfResidues("ecoli", cutoff, normalize=TRUE, "wenjunh")
