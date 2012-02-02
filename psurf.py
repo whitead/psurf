@@ -1,6 +1,6 @@
-import math, re
 #Created by Andrew White, 2011
 
+import re
 
 #PDB Format
 pdbSliceIndices = [6,11,12,16,17,20,22,26,27,30,38,46,54,60,66,73,76,80]
