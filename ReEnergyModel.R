@@ -190,7 +190,7 @@ getSurfaceDensities <- function(dataset, username=NULL) {
 }
 
 #get the interaction energies between residue types
-getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
+getInterctionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   dataset <- paste(paste(dataset,"total","contacts", sep="_"), "csv" ,sep=".")
  
@@ -208,30 +208,26 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   anames.ord <- order(anames)
 
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
-
-  
+    
   #sum it
   contactMatrix <- sampleContacts(countMatrix, random=FALSE)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
   rownames(contactMatrix) <- c(sort(rownames(contactMatrix)[1:aanum]), rownames(contactMatrix)[-(1:aanum)])
-  contactMatrix[1:aanum, 1:aanum] <- contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])
-
-
 
   
-  #normalize it to the effects remove amounts of each amino acid
-  #add the effect of the free residues
+  #Adjust sums, so that pairs which were double counted or multiple pairings are fixed
   for(i in 1:aanum) {
-    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] / sum(contactMatrix[1:aanum, i])
-    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] * (1 - contactMatrix["FREE", i] / contactMatrix["TOTAL", i])
-    contactMatrix["FREE", i] <- contactMatrix["FREE", i] / contactMatrix["TOTAL", i]
+    contactMatrix[1:aanum,i] <- contactMatrix[1:aanum,i] * (contactMatrix["TOTAL", i] - contactMatrix["FREE", i]) / sum(contactMatrix[1:aanum,i])
   }
 
-  
+  #Make it symmetric
+  contactMatrix[1:aanum, 1:aanum] <- (contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])) / 2
 
+   
   #normalize it so all events sum to 1
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
   contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
+
   
   #make it relative to being a free residue
   mat <- matrix(rep(0, aanum**2), nrow=aanum)
@@ -239,7 +235,7 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   colnames(mat) <- sort(anames)
   for(i in 1:aanum) {
     for(j in 1:aanum) {
-      mat[i,j] <- contactMatrix[i,j] * contactMatrix[j,i] / (contactMatrix["FREE",i] * contactMatrix["FREE", j])
+            mat[i,j] <- contactMatrix[i,j]  / (sum(contactMatrix[1:aanum,i]) * sum( contactMatrix[1:aanum, j]))
     }
   }
   
@@ -416,8 +412,12 @@ colnames(propDists) <- colnames(groDist)
 propddG <- rep(0,20)
 names(propddG) <- colnames(propDists)
 
+
+
 for(i in 1:20) {
- 
+
+  print(propDists[i,])
+  
   ddG <- proteinEnergyCycle("whitead", "Close", groDistribution=propDists[i,])
   propddG[i] <- median(ddG$ddG)
   
