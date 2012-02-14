@@ -1,10 +1,9 @@
-
 source("SQLShareLib.R")
 
 #get the interaction energies between residue types
 getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
-  dataset <- paste(paste(dataset,"total","contacts", sep="_"), "csv" ,sep=".")
+  dataset <- paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep=".")
  
   #get the data
   if(is.null(username)) {
@@ -21,8 +20,6 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
 
-<<<<<<< HEAD
-  
   #sum it
   contactMatrix <- sampleContacts(countMatrix, random=FALSE)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
@@ -37,7 +34,8 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   #Make it symmetric
   contactMatrix[1:aanum, 1:aanum] <- (contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])) / 2
 
-   
+
+  
   #normalize it so all events sum to 1
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
   contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
@@ -67,14 +65,13 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   for(i in 1:length(categories)) {
 
-    for(j in 1:aanum) {
+    for(j in 1:aanum) { 
       mat[names(categories)[i] ,j] <- sum(contactMatrix[j,categories[[i]]]) / (sum(sapply(categories[[i]], function(x) {contactMatrix[1:aanum,x]})) * sum( contactMatrix[1:aanum, j]))
       
     }
     
   }
 
-  
   mat <- -log(mat)
 
   #make glycine 0, if wanted
@@ -93,9 +90,9 @@ chis <- getInteractionEnergy("ecoli", "wenjunh")
 
 interactionTable <- chis
 
-surface <- fetchAllSurfResidues("ecoli", cutoff, normalize=TRUE, "wenjunh")
-interior <- fetchAllBuriedResidues("ecoli", cutoff, normalize=TRUE, "wenjunh")
-all <- fetchAllSurfResidues("ecoli", -1, normalize=TRUE, "wenjunh")
+surface <- fetchAllSurfResidues("ecoli", cutoff, normalize=FALSE, "wenjunh")
+interior <- fetchAllBuriedResidues("ecoli", cutoff, normalize=FALSE, "wenjunh")
+all <- fetchAllSurfResidues("ecoli", -1, normalize=FALSE, "wenjunh")
 
 distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(surface - all))
 
@@ -129,8 +126,8 @@ rawData <- fetchdata(sql)
 
 
 
-groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][3]][1]))
-groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row-1], as.integer))), nrow=2, byrow=T)
+groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][[3]][1]))
+groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=2, byrow=T)
 
 groDist[1, ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroL_Close", ]))
 groDist[2, ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroE_Open", ]))
@@ -156,7 +153,7 @@ for (i in 1:nrow(hspRawCount)) {
 hspRawCount <- as.matrix(hspRawCount)
 
 hspDist <- matrix(0,nrow(hspRawCount)+1, ncol(hspRawCount))
-rownames(hspDist) <- c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Yeast CCT")
+rownames(hspDist) <- c("E.Coli","E.Coli GroEL","Thermo GroEL","Group II","HSP90","Yeast CCT")
 colnames(hspDist) <- colnames(hspRawCount)
 
 hspDist[2,] <- hspRawCount["1SX4",]
@@ -168,6 +165,8 @@ hspDist[6,] <- hspRawCount["3P9D",]
 #various statistics
 print(sum(hspRawCount["1WE3", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
 print(sum(hspRawCount["1SX4", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
+print(sum(hspRawCount["3KFB", c("ASP", "GLU")]))
+print(sum(hspRawCount["3KFB", c("LYS", "HIS", "ARG")]))
 
 cutoff <- 0.3
 psurf <- fetchAllSurfResidues("ecoli", cutoff, normalize=TRUE, "wenjunh")
@@ -177,7 +176,7 @@ chargeSum <- rep(0, nrow(psurf))
 for (i in 1:nrow(psurf)) {
   chargeSum[i] <- sum(psurf[i,c("LYS","ARG","GLU","ASP","HIS")])
 }
-quantile(chargeSum)
+quantile(chargeSum, seq(0,1,0.01))
 
 hspDist[1,] <- apply(psurf, MARGIN=2, FUN=mean)
 
