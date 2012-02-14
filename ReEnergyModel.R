@@ -10,14 +10,19 @@ closeCharaLength <- 46.4    #These numbers are subject to change
 openCharaLength <- 29.96
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
-sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
+sql <- paste("select * FROM [wenjunh@washington.edu].[GroEL_Mutant_Counts.csv]")
 rawData <- fetchdata(sql)
-groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][[3]][1]))
-groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=2, byrow=T)
+
+distNum <- length(rawData[[1]]) - 1
+groDist <- empty.df(rawData[[1]][[1]][-1], sapply(2:(distNum + 1), function(x) {rawData[[1]][[x]][1]}))
+
+groDist[1:distNum,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=distNum, byrow=T)
 
 groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroEL_Close", ]))
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
+groDist <- groDist[c("GroEL_Close", "GroEL_Open"),]
 
+print(groDist)
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
 proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivative=FALSE, dataset="ecoli_nogaps", contactDataset="ecoli_backbone", contactUsername="wenjunh") {
