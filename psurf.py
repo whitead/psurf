@@ -30,7 +30,7 @@ backbone = ['N', 'O', 'CA', 'C']
 
 aaSA = {'ALA':113, 'ARG':241, 'ASP':151, 'ASN':158, 'CYS':140, 'GLN':189, 'GLU':183, 'GLY':85, 'HIS':194, 'ILE':182, 'LEU':180, 'LYS':211, 'MET':204, 'PHE':218, 'PRO':143, 'SER':122, 'THR':146, 'TRP':259, 'TYR':229, 'VAL':160}
 AAs = conversion.keys()
-surfCutoff = 0.3
+surfCutoff = 0.1
 
 class Atom: 
    def __init__(self):
