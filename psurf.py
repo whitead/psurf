@@ -1,6 +1,6 @@
-import math, re
 #Created by Andrew White, 2011
 
+import re, math
 
 #PDB Format
 pdbSliceIndices = [6,11,12,16,17,20,22,26,27,30,38,46,54,60,66,73,76,80]
@@ -23,14 +23,15 @@ conversion = {'ALA':'A', 'ARG':'R', 'ASP':'D', 'ASN':'N', 'CYS':'C', 'GLN':'Q', 
 
 MW = {'A':'89.09', 'R':'174.20', 'D':'133.10', 'N':'132.12', 'C':'121.16', 'Q':'146.14', 'E':'147.13', 'G':'75.07', 'H':'155.15', 'I':'131.17', 'L':'131.17', 'K':'146.19', 'M':'149.21', 'F':'165.19', 'P':'115.13', 'S':'105.09', 'T':'119.12', 'W':'204.23', 'Y':'181.19', 'V':'117.15'}
 
-chis = {'GLU':[0,1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[]}
+chis = {'GLU':[1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[]}
 chiTypes = [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD'], ['CB', 'CG', 'CD' , 'CE'], ['CB', 'CG', 'CD' , 'NZ']]
 OPLSSigmas = {'N':3.25, 'O':2.96, 'C':3.75, 'S':3.55, 'H':0.00, 'HOH':3.1507}
 backbone = ['N', 'O', 'CA', 'C']
 
 aaSA = {'ALA':113, 'ARG':241, 'ASP':151, 'ASN':158, 'CYS':140, 'GLN':189, 'GLU':183, 'GLY':85, 'HIS':194, 'ILE':182, 'LEU':180, 'LYS':211, 'MET':204, 'PHE':218, 'PRO':143, 'SER':122, 'THR':146, 'TRP':259, 'TYR':229, 'VAL':160}
 AAs = conversion.keys()
-surfCutoff = 0.1
+AAs.sort()
+surfCutoff = 0.3
 
 class Atom: 
    def __init__(self):
@@ -509,7 +510,7 @@ class Protein:
     
     def _getChis(self, rindex):
        result = []
-       for i in chis[self.getResidue(rindex).getType()]:
+       for i in chis[self.residues[rindex].getType()]:
           result.append(self.getTorsion([rindex, rindex, rindex, rindex], chiTypes[i]))
        return result
 
@@ -524,7 +525,7 @@ class Protein:
        return self.getTorsion([rindex, rindex, rindex, rindex + 1], ["N", "CA", "C","N"])
          
     def getChis(self, rindex, chain):
-       self._getChis(self.getResidueIndex(rindex, chain))
+       return self._getChis(self.getResidueIndex(rindex, chain))
        
     
     def getPhi(self, rindex, chain):
@@ -534,10 +535,12 @@ class Protein:
        return self._getPsi(self.getResidueIndex(rindex, chain))
 
     def _makeVectorFromTypes(self, r1, r2, t1, t2):
+
        try:
           v = (self.residues[r2].getAtomByType(t2).getCoord()[0] - self.residues[r1].getAtomByType(t1).getCoord()[0],
              self.residues[r2].getAtomByType(t2).getCoord()[1] - self.residues[r1].getAtomByType(t1).getCoord()[1],
              self.residues[r2].getAtomByType(t2).getCoord()[2] - self.residues[r1].getAtomByType(t1).getCoord()[2])
+
        except:
           if(self.residues[r1].getAtomByType(t1) == None):
              raise RuntimeError("Missing Atom type %s in residue %s" %( t1, self.residues[r1].__str__()))
@@ -558,8 +561,9 @@ class Protein:
        x = math.sqrt(self._dot(v2,v2)) * (self._dot(v1, self._cross(v2,v3)))
        y = self._dot(self._cross(v1,v2), self._cross(v2,v3))
 
+
        altAngle = math.atan2(x,y)
-       
+
        return altAngle
        
 

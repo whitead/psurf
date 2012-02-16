@@ -8,11 +8,11 @@ if(len(sys.argv) != 6):
 
 setSurfCutoff(float(sys.argv[3]))
 ionicOnly = False
-if(sys.argv[4] in ['T', 't', 'True', 'true']):
+if(sys.argv[4] in ['T', 't', 'True', 'true', 'TRUE']):
     ionicOnly = True
 
 backbone = False
-if(sys.argv[5] in ['T', 't', 'True', 'true']):
+if(sys.argv[5] in ['T', 't', 'True', 'true', 'TRUE']):
     backbone = True
 
 if(ionicOnly):

@@ -10,17 +10,22 @@ closeCharaLength <- 46.4    #These numbers are subject to change
 openCharaLength <- 29.96
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
-sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
+sql <- paste("select * FROM [wenjunh@washington.edu].[GroEL_Mutant_Counts.csv]")
 rawData <- fetchdata(sql)
-groDist <- empty.df(rawData[[1]][[1]][-1], c(rawData[[1]][[2]][1], rawData[[1]][[3]][1]))
-groDist[1:2,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=2, byrow=T)
+
+distNum <- length(rawData[[1]]) - 1
+groDist <- empty.df(rawData[[1]][[1]][-1], sapply(2:(distNum + 1), function(x) {rawData[[1]][[x]][1]}))
+
+groDist[1:distNum,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=distNum, byrow=T)
 
 groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroEL_Close", ]))
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
+groDist <- groDist[c("GroEL_Close", "GroEL_Open"),]
 
+print(groDist)
 
 ##This is the main code in this script for free energy model at 903 individual protein level, Modified Dec 19th, 2011
-proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivative=FALSE, dataset="ecoli_nogaps", contactDataset="ecoli", contactUsername="wenjunh") {
+proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivative=FALSE, dataset="ecoli_nogaps", contactDataset="ecoli_backbone", contactUsername="wenjunh") {
 
 
   #set up the exponents and distribution
@@ -97,7 +102,9 @@ proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivati
   names(ddG) <- rownames(energy)
   
   for (i in 1:length(ddG)) {
-    ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
+    #ddG[i] <-  timeFraction[i,"Tf"] * shapeFactors[i,"Af"] * energy[i,"Efold"] - timeFraction[i,"Tu"] * shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
+    #ddG[i] <-   shapeFactors[i,"Af"] * energy[i,"Efold"] - shapeFactors[i,"Au"] * energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
+    ddG[i] <-   energy[i,"Efold"] - energy[i,"Eunfold"] - (gyration[i,"Rg"] / charaLength)^confinementExponent
   }
  #put the various values into a dataframe
   allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], resNumber=gyration[,"resNumber"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
@@ -192,7 +199,7 @@ getSurfaceDensities <- function(dataset, username=NULL) {
 #get the interaction energies between residue types
 getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
-  dataset <- paste(paste(dataset,"total","contacts", sep="_"), "csv" ,sep=".")
+  dataset <- paste(paste(dataset,"contacts", sep="_"), "csv" ,sep=".")
  
   #get the data
   if(is.null(username)) {
@@ -202,6 +209,7 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
     countMatrix <- fetchContacts(dataset, username)
   }
 
+
   #re-order it
   anames <- colnames(countMatrix[-c(1,2)])
   aanum <- length(anames)
@@ -209,29 +217,26 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
 
-  
   #sum it
   contactMatrix <- sampleContacts(countMatrix, random=FALSE)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
   rownames(contactMatrix) <- c(sort(rownames(contactMatrix)[1:aanum]), rownames(contactMatrix)[-(1:aanum)])
-  contactMatrix[1:aanum, 1:aanum] <- contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])
-
-
 
   
-  #normalize it to the effects remove amounts of each amino acid
-  #add the effect of the free residues
+  #Adjust sums, so that pairs which were double counted or multiple pairings are fixed
   for(i in 1:aanum) {
-    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] / sum(contactMatrix[1:aanum, i])
-    contactMatrix[1:aanum, i] <- contactMatrix[1:aanum, i] * (1 - contactMatrix["FREE", i] / contactMatrix["TOTAL", i])
-    contactMatrix["FREE", i] <- contactMatrix["FREE", i] / contactMatrix["TOTAL", i]
+    contactMatrix[1:aanum,i] <- contactMatrix[1:aanum,i] * (contactMatrix["TOTAL", i] - contactMatrix["FREE", i]) / sum(contactMatrix[1:aanum,i])
   }
 
-  
+  #Make it symmetric
+  contactMatrix[1:aanum, 1:aanum] <- (contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])) / 2
 
+
+  
   #normalize it so all events sum to 1
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
   contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
+
   
   #make it relative to being a free residue
   mat <- matrix(rep(0, aanum**2), nrow=aanum)
@@ -239,10 +244,10 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   colnames(mat) <- sort(anames)
   for(i in 1:aanum) {
     for(j in 1:aanum) {
-      mat[i,j] <- contactMatrix[i,j] * contactMatrix[j,i] / (contactMatrix["FREE",i] * contactMatrix["FREE", j])
+            mat[i,j] <- contactMatrix[i,j]  / (sum(contactMatrix[1:aanum,i]) * sum( contactMatrix[1:aanum, j]))
     }
   }
-  
+
   mat <- -log(mat)
 
   #make glycine 0, if wanted
@@ -326,7 +331,7 @@ ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset=
 ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="assist_nogaps")
 
 #Remove all proteins that should not fit within the cavity
-zddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
+ddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
 ddG2.trunc <- ddG2[ddG2$Rf < closeCharaLength,]
 
 #make plot of two plots
@@ -336,15 +341,26 @@ colorNumber <- 100
 cuts <- cut(ddG1.trunc$resNumber, colorNumber, labels=F)
 colorGrad <- colorRampPalette(c("black", "blue", "purple", "red"), space="Lab")(colorNumber)[cuts]
 
-cairo_pdf("entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
+cairo_pdf("close_entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
 ddG1.entropy <- sapply(ddG1.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
-plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * A / kT)), xlim=c(-50,0), ylim=c(-50, 0), col="white")
+plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-50, 0), col="white")
 abline(v=0, lty=1, col="light gray", lwd=0.5)
 abline(h=0, lty=1, col="light gray", lwd=0.5)
 lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-50,0), ylim=c(-50, 0))
 points(-ddG1.entropy, ddG1.trunc$ddG + ddG1.entropy, xlim=c(-50,0), ylim=c(-50, 0), cex=0.75, lwd=0.5, col="gray25")
 graphics.off()
+
+cairo_pdf("open_entropy_enthalpy_groel.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.65, fg="dark gray")
+ddG2.entropy <- sapply(ddG2.trunc$Rg, FUN=function(x) { (x / closeCharaLength)^closeConfinementExponent})
+plot(0,0, xlab=expression(paste(-T * Delta * Delta * S / kT)), ylab=expression(paste(Delta * Delta * U / kT)), xlim=c(-50,0), ylim=c(-5, 50), col="white")
+abline(v=0, lty=1, col="light gray", lwd=0.5)
+abline(h=0, lty=1, col="light gray", lwd=0.5)
+lines(seq(-150,50), seq(150, -50), col="light gray", lty=2, xlim=c(-50,0), ylim=c(-5, 50))
+points(-ddG2.entropy, ddG2.trunc$ddG + ddG2.entropy, xlim=c(-50,0), ylim=c(-5, 50), cex=0.75, lwd=0.5, col="gray25")
+graphics.off()
+
 
 cairo_pdf("open_close_entropy_enthalpy.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
@@ -358,12 +374,12 @@ graphics.off()
 
 cairo_pdf("open_close_1.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.65, fg="dark gray")
-plot(0,0, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-50, 50), pch=0, type="p", col="white")
-lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-100,25), ylim=c(-100, 25))
+plot(0,0, xlab=expression(paste("Close ", Delta * Delta * A, " [kT]")), ylab=expression(paste("Open ", Delta * Delta * A, " [kT]")), xlim=c(-100,25), ylim=c(-20, 5), pch=0, type="p", col="white")
+lines(seq(-150,50), seq(-150, 50), col="light gray", lty=2, xlim=c(-100,25), ylim=c(-20, 5))
 abline(v=0, lty=1, col="green", lwd=0.5)
 abline(h=0, lty=1, col="blue", lwd=0.5)
-points(ddG1.trunc$ddG, ddG2.trunc$ddG, cex=0.75, lwd=0.5, col="gray25", xlim=c(-100, 25), ylim=c(-100, 25))
-points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-100, 25), pch=19, cex=0.75, lwd=0.5, col="red")
+points(ddG1.trunc$ddG, ddG2.trunc$ddG, cex=0.75, lwd=0.5, col="gray25", xlim=c(-100, 25), ylim=c(-20, 5))
+points(ddG1.assist$ddG, ddG2.assist$ddG, xlim=c(-100, 25), ylim=c(-20, 5), pch=19, cex=0.75, lwd=0.5, col="red")
 graphics.off()
 
 print(as.double(sum(ddG1.trunc$ddG < ddG2.trunc$ddG)) / nrow(ddG1.trunc))
@@ -416,8 +432,10 @@ colnames(propDists) <- colnames(groDist)
 propddG <- rep(0,20)
 names(propddG) <- colnames(propDists)
 
+
+
 for(i in 1:20) {
- 
+
   ddG <- proteinEnergyCycle("whitead", "Close", groDistribution=propDists[i,])
   propddG[i] <- median(ddG$ddG)
   
