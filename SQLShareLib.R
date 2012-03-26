@@ -36,7 +36,7 @@ fetchContacts <- function(tableName, username=FALSE) {
   }
 
   sql <- paste("select * FROM [", username, "@washington.edu].[", tableName, "]", sep="")
-  
+
   cat(paste("Fetching", tableName, "\n"))
   rawData <- fetchdata(sql)
   rnames <- (1:(length(rawData[[1]]) - 1))
@@ -98,7 +98,7 @@ fetchPDBIDs <- function(dataset, username=FALSE) {
 
   sql = paste("select pdb_id FROM [", username, "@washington.edu].[",dataset,"_1.csv]",sep="")
   idlist <- fetchdata(sql)
-  print(idlist)
+
   #minus one to skip the column headers
   ids <- rep("", length(idlist[[1]]) - 1)
   for(i in 2:length(idlist[[1]])) {
@@ -477,7 +477,7 @@ loadpairs <- function(dataset, cutoff, ids) {
   for(i in 1:length(ids)) {
     cat(ids[i])
     pairlist[[i]] <- fetchResiduePairs(dataset, cutoff, ids[i], symm=TRUE)
-#    cat(paste("\r",i,"/",length(ids), " "))
+    cat(paste("\r",i,"/",length(ids), " "))
   }
   cat("\n")
 

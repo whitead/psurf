@@ -1,18 +1,12 @@
 source("SQLShareLib.R")
 
+
+
+
 #get the interaction energies between residue types
-getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
+getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=FALSE, countMatrix=fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)) {
 
-  dataset <- paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep=".")
  
-  #get the data
-  if(is.null(username)) {
-    countMatrix <- fetchContacts(dataset)
-  }
-  else{
-    countMatrix <- fetchContacts(dataset, username)
-  }
-
   #re-order it
   anames <- colnames(countMatrix[-c(1,2)])
   aanum <- length(anames)
@@ -21,7 +15,7 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   countMatrix <- countMatrix[c(1,2,anames.ord + 2)]
 
   #sum it
-  contactMatrix <- sampleContacts(countMatrix, random=FALSE)
+  contactMatrix <- sampleContacts(countMatrix, random=random)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
   rownames(contactMatrix) <- c(sort(rownames(contactMatrix)[1:aanum]), rownames(contactMatrix)[-(1:aanum)])
 
@@ -35,12 +29,9 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
   contactMatrix[1:aanum, 1:aanum] <- (contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])) / 2
 
 
-  
   #normalize it so all events sum to 1
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
   contactMatrix[normRows, 1:aanum] <- contactMatrix[normRows, 1:aanum] / sum(contactMatrix[normRows, 1:aanum])
-
-
 
 
   #Get the categories to consider 
@@ -86,40 +77,151 @@ getInteractionEnergy <- function(dataset, username=NULL, glycine=FALSE) {
 
 
 #Interaction Table
-chis <- getInteractionEnergy("ecoli", "wenjunh")
+
+dataset <- "h2"
+username <- "whitead"
+
+chis <- getInteractionEnergy(dataset, username)
 
 interactionTable <- chis
 
-surface <- fetchAllSurfResidues("ecoli", cutoff, normalize=FALSE, "wenjunh")
-interior <- fetchAllBuriedResidues("ecoli", cutoff, normalize=FALSE, "wenjunh")
-all <- fetchAllSurfResidues("ecoli", -1, normalize=FALSE, "wenjunh")
+surface <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
+interior <- fetchAllBuriedResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
+all <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), -1, normalize=FALSE, username)
 
 distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(surface - all))
 
-for(i in 1:length(distributions)) {
 
-  dist <- distributions[[i]]
-  energies <- matrix(0, nrow=nrow(dist), ncol=20)
 
-  for(j in 1:nrow(dist)) {
+#sample all the contact energies
+contacts <- fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)
+bootstrap <- 500
+chis.list <- vector("list", bootstrap)
 
-    energies[j,] <- as.matrix(dist[j,]) %*% chis[1:20, 1:20]
+for(b in 1:bootstrap) {
+
+  chis <- getInteractionEnergy(countMatrix=contacts, random=TRUE)
+  
+  for(i in 1:length(distributions)) {
+
+    dist <- distributions[[i]]
+    energies <- matrix(0, nrow=nrow(dist), ncol=20)
     
+    for(j in 1:nrow(dist)) {
+      
+      energies[j,] <- as.matrix(dist[j,]) %*% chis[1:20, 1:20]
+    
+    }
+    chis <- rbind(chis, apply(energies, 2, median)) 
   }
 
-  interactionTable <- rbind(interactionTable, apply(energies, 2, median))
+  rownames(chis) <- c(rownames(chis)[-sapply(1:length(distributions), function(x) {nrow(chis) - x + 1})], "Proteins", "Surface", "Interior", "Surface - Proteins")
   
+  chis.list[[b]] <- chis
 }
 
-rownames(interactionTable) <- c(rownames(chis), "Proteins", "Surface", "Interior", "Surface - Proteins")
+#Construct a data.frame containing the medians and a data.frame containing the lower and upper
+
+print(chis.list)
+print(rownames(chis.list[[1]]))
+
+interactionTable <- empty.df(colnames(chis.list[[1]]), rownames(chis.list[[1]]))
+interactionTable.lower <- empty.df(colnames(chis.list[[1]]), rownames(chis.list[[1]]))
+interactionTable.upper <- empty.df(colnames(chis.list[[1]]), rownames(chis.list[[1]]))
+
+for(i in 1:nrow(chis.list[[1]])) {
+  for(j in 1:ncol(chis.list[[1]])) {
+
+    values <- as.double(lapply(chis.list, function(x) {x[i, j]}))
+    qs <- quantile(values, c(0.025, 0.5, 0.975))
+    interactionTable[i, j] <- qs[2]
+    interactionTable.lower[i,j] <- qs[1]
+    interactionTable.upper[i,j] <- qs[3]
+  }
+}
+
+chis <- interactionTable[-sapply(1:length(distributions), function(x) {nrow(chis) - x + 1}),]
+chis <- as.matrix(chis)
+
+print(chis)
+print(interactionTable)
+print(interactionTable.lower)
+
 
 #remove glycine
 gindex <- which(colnames(interactionTable) == "GLY")
 
 interactionTable <- interactionTable[-gindex, -gindex]
+interactionTable.upper <- interactionTable.upper[-gindex, -gindex]
+interactionTable.lower <- interactionTable.lower[-gindex, -gindex]
 
 write.table(round(interactionTable, 2), file="Interaction_Table.txt", quote=FALSE, sep=" & ", eol="\\\\\n")
 
+
+#Plot table
+colGrad <- colorRampPalette(c("blue", "red"))
+res <- 250
+boxsize <- 0.25
+png("aa_interaction_table.png", width=res * (4 + 1 + boxsize * nrow(chis)), height=res * (4 + 1 + boxsize * ncol(chis)), res=res)
+par(family="LMRoman10", cex.sub=1.2, fg="dark gray")
+chis["CYS", "CYS"] <- NA
+image(1:nrow(chis), 1:ncol(chis), -chis, col=colGrad(500), xaxt="n", yaxt="n", xlab="Contacting", ylab="Amino Acid")
+axis(1, 1:nrow(chis), c(aalist.sh, "Ar", "Po", "Ch", "Hy"))
+print(ncol(chis))
+axis(2, 1:ncol(chis), aalist.sh)
+graphics.off()
+
+colGrad <- colorRampPalette(c("white", "black"))
+res <- 250
+boxsize <- 0.25
+png("aa_interaction_table_bw.png", width=res * (4 + 1 + boxsize * nrow(chis)), height=res * (4 + 1 + boxsize * ncol(chis)), res=res)
+par(family="LMRoman10", cex.sub=1.2, fg="dark gray")
+chis["CYS", "CYS"] <- NA
+image(1:nrow(chis), 1:ncol(chis), -chis, col=colGrad(500), xaxt="n", yaxt="n", xlab="Contacting", ylab="Amino Acid")
+axis(1, 1:nrow(chis), c(aalist.sh, "Ar", "Po", "Ch", "Hy"))
+print(ncol(chis))
+axis(2, 1:ncol(chis), aalist.sh)
+graphics.off()
+
+#Make truncated version
+colGrad <- colorRampPalette(c("blue", "red"))
+trunc.residues <- c("GLU", "GLN", "ASP", "GLN", "LYS", "ARG", "SER", "ALA")
+trunc.labs <- c("E", "Q", "D", "N", "K", "R", "S", "A")
+trunc.cats <- c("Polar", "Charged", "Hydrophobic")
+trunc.index <- sapply(trunc.residues, function(x) {which(rownames(chis) == x)})
+trunc.index.cats <- sapply(trunc.cats, function(x) {which(rownames(chis) == x)})
+trunc.labs.cats <- c("Po", "Ch", "Hy")
+
+
+chis <- chis[c(trunc.index, trunc.index.cats), trunc.index]
+
+res <- 300
+boxsize <- 0.25
+png("aa_trunc_interaction_table.png", width=res * (4 + 1 + boxsize * (length(trunc.cats) + length(trunc.labs))), height=res * (4 + 1 + boxsize * (length(trunc.labs))), res=res)
+par(family="LMRoman10", cex.axis=1.0, fg="gray25", par=c(4, 4, 1, 1))
+image(1:nrow(chis), 1:ncol(chis), chis, col=colGrad(500), xaxt="n", yaxt="n", xlab="Contacting", ylab="Amino Acid")
+box()
+axis(1, 1:(length(trunc.cats) + length(trunc.residues)), c(trunc.labs, trunc.labs.cats), xaxs="r")
+print(ncol(chis))
+axis(2, 1:length(trunc.residues), trunc.labs)
+graphics.off()
+
+#Now make bargraph
+cairo_pdf("aa_protein_interactions.pdf", width=3.42, height=2.58, pointsize=8)
+par(family="LMSans10", cex.axis=0.6)
+yy <- as.matrix(interactionTable[c("Surface", "Interior"),])
+print(dim(yy))
+print(dim(as.matrix(interactionTable.lower[c("Surface", "Interior"),])))
+yy.lower <- yy - as.matrix(interactionTable.lower[c("Surface", "Interior"),])
+yy.upper <- as.matrix(interactionTable.upper[c("Surface", "Interior"),]) - yy
+yy.index <- order(yy[1,] - yy[2,])
+aalist.sh.nog <- aalist.sh[-which(aalist.sh == "G")]
+barx <- barplot(yy[,yy.index], col=c("gray25", "gray80"), main="", xlab="Amino Acid", ylab=expression(paste("Interaction Energy, E[", chi, "]", " kJ/mol")), beside=T, names.arg=aalist.sh.nog[yy.index], ylim=c(-30,30), space=c(0,0.4))
+error.bar(barx, yy[,yy.index], lower=yy.lower[,yy.index], upper=yy.upper[,yy.index], length=0.02)
+legend("top", col=c("gray25", "gray80"), cex=0.8, legend=c("Surface", "Buried"), pch=15)
+graphics.off()
+
+                       
 
 sql <- paste("select * FROM [whitead@washington.edu].[GroEL_counts.csv]")
 rawData <- fetchdata(sql)
@@ -189,8 +291,8 @@ for (i in 1:ncol(psurf)) {
 }
 
 cairo_pdf('HSP_Protein_Dist.pdf',width=5.5, height=2.58, pointsize=9)
-par(family='LMSans10', cex.axis=0.75)
+par(family='LMSans10', cex.axis=0.75, mar=c(3.5,3,2,2))
 barx <- barplot(hspDist, beside=TRUE, col=c('blue','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
 error.bar(barx,hspDist,lower=low,upper=up,length=0.01)
-legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("E.Coli","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT"), pch=rep(15,6), cex=0.8)
+legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("E. Coli","E. Coli GroEL","Thermo GroEL","Group II","HSP90","CCT"), pch=rep(15,6), cex=0.8)
 graphics.off()
