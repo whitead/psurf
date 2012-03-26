@@ -1,16 +1,16 @@
 source("SQLShareLib.R")
 
 surfCutoff <- 0.3
-kuhnLength <- 1.83
+kuhnLength <- 1.927
 surfaceRoughness <- 3.5
-sawExponent <- 3/5.
+sawExponent <- 3/5
 closeConfinementExponent <- 3.25
 openConfinementExponent <- 5/3. # this number comes frmo De gennes on page 49 , not sure why but I used to have 1.5
 closeCharaLength <- 46.4    #These numbers are subject to change
 openCharaLength <- 29.96
 
 ##Obtain the raw counts of GroEL inside surface residues, both open and close form
-sql <- paste("select * FROM [wenjunh@washington.edu].[GroEL_Mutant_Counts.csv]")
+sql <- paste("select * FROM [whitead@washington.edu].[GroEL_Mutant_Counts.csv]")
 rawData <- fetchdata(sql)
 
 distNum <- length(rawData[[1]]) - 1
@@ -18,7 +18,7 @@ groDist <- empty.df(rawData[[1]][[1]][-1], sapply(2:(distNum + 1), function(x) {
 
 groDist[1:distNum,] <- matrix(unlist(lapply(rawData[[1]][-1], function(row) sapply(row[-1], as.integer))), nrow=distNum, byrow=T)
 
-groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close", ]) / sum(as.double(groDist["GroEL_Close", ]))
+groDist["GroEL_Close", ] <- as.double(groDist["GroEL_Close_M7", ]) / sum(as.double(groDist["GroEL_Close_M7", ]))
 groDist["GroEL_Open", ] <- as.double(groDist["GroEL_Open", ]) / sum(as.double(groDist["GroEL_Open", ]))
 groDist <- groDist[c("GroEL_Close", "GroEL_Open"),]
 
@@ -108,6 +108,7 @@ proteinEnergyCycle <- function(username, groForm, groDistribution=NULL, derivati
   }
  #put the various values into a dataframe
   allData <- data.frame(ddG=ddG, Tu=timeFraction[,"Tu"], resNumber=gyration[,"resNumber"], Au=shapeFactors[,"Au"], Eu=energy[,"Eunfold"], Tf=timeFraction[,"Tf"], Af=shapeFactors[,"Af"], Ef=energy[,"Efold"], Rg=gyration[,"Rg"], Rf=gyration[,"Rf"])
+  rownames(allData) <- rownames(gyration)
   return(allData)
 } 
 
@@ -323,12 +324,12 @@ getSurfResFirstDev <- function(username, dataset) {
 }
 
 #Below are used for actual program
-ddG1 <- proteinEnergyCycle("whitead", "Close", derivative=FALSE)
-ddG2 <- proteinEnergyCycle("whitead", "Open", derivative=FALSE)
+ddG1 <- proteinEnergyCycle("wenjunh", "Close", derivative=FALSE)
+ddG2 <- proteinEnergyCycle("wenjunh", "Open", derivative=FALSE)
 
 
-ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset="assist_nogaps")
-ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="assist_nogaps")
+ddG1.assist <- proteinEnergyCycle("whitead", "Close", derivative=FALSE, dataset="AS2")
+ddG2.assist <- proteinEnergyCycle("whitead", "Open", derivative=FALSE, dataset="AS2")
 
 #Remove all proteins that should not fit within the cavity
 ddG1.trunc <- ddG1[ddG1$Rf < closeCharaLength,]
@@ -390,6 +391,7 @@ hist(ddG1.trunc$ddG - ddG2.trunc$ddG, xlab=expression(paste(Delta * Delta * Delt
 graphics.off()
 
 print(paste("Median close:", median(ddG1.trunc$ddG)))
+print(paste("Assist truncated median:", median(ddG1.assist$ddG[ddG1.assist$Rf < closeCharaLength])))
 print(paste("Median close per residue:", median(ddG1.trunc$ddG / ddG1.trunc$resNumber)))
 print(paste("Median diff:", median(ddG1.trunc$ddG - ddG2.trunc$ddG)))
 

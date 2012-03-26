@@ -21,10 +21,11 @@ regexpSeq = re.compile("SEQRES[\s]*[\d]*[\s]*[\w]*[\s]*[\d]*[\s]*(.*)")
 
 conversion = {'ALA':'A', 'ARG':'R', 'ASP':'D', 'ASN':'N', 'CYS':'C', 'GLN':'Q', 'GLU':'E', 'GLY':'G', 'HIS':'H', 'ILE':'I', 'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P', 'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'}
 
-MW = {'A':'89.09', 'R':'174.20', 'D':'133.10', 'N':'132.12', 'C':'121.16', 'Q':'146.14', 'E':'147.13', 'G':'75.07', 'H':'155.15', 'I':'131.17', 'L':'131.17', 'K':'146.19', 'M':'149.21', 'F':'165.19', 'P':'115.13', 'S':'105.09', 'T':'119.12', 'W':'204.23', 'Y':'181.19', 'V':'117.15'}
+MW = {'A':'89.09', 'R':'174.20', 'D':'133.10', 'N':'132.12', 'C':'121.16', 'Q':'146.14', 'E':'147.13', 'G':'75.07', 'nH':'155.15', 'I':'131.17', 'L':'131.17', 'K':'146.19', 'M':'149.21', 'F':'165.19', 'P':'115.13', 'S':'105.09', 'T':'119.12', 'W':'204.23', 'Y':'181.19', 'V':'117.15'}
 
-chis = {'GLU':[1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[]}
-chiTypes = [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD'], ['CB', 'CG', 'CD' , 'CE'], ['CB', 'CG', 'CD' , 'NZ']]
+chis = {'GLU':[1], 'LYS':[0,1,2,3], 'SER':[], 'GLY':[], 'PRO':[], 'ASP':[4]}
+chiTypes = [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD'], ['CB', 'CG', 'CD' , 'CE'], ['CB', 'CG', 'CD' , 'NZ'],
+['C', 'CA', 'CB', 'CG']]
 OPLSSigmas = {'N':3.25, 'O':2.96, 'C':3.75, 'S':3.55, 'H':0.00, 'HOH':3.1507}
 backbone = ['N', 'O', 'CA', 'C']
 
@@ -427,7 +428,7 @@ class Protein:
              try:
                 lines[-1] += ",%6.4f" % (r.getSA() / aaSA[r.getType()])
              except KeyError:
-                print "Could not find residue %s in SA dataset" % r.getType()
+                print "Could not find residue \"%s\" in SA dataset" % r.getType()
                 lines[-1] += ",NULL"
              lines[-1] += "\n"
              
