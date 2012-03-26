@@ -13,6 +13,7 @@ if(sys.argv[4] in ['T', 't', 'True', 'true']):
 
 backbone = False
 if(sys.argv[5] in ['T', 't', 'True', 'true']):
+    print "Enabling backbone"
     backbone = True
 
 if(ionicOnly):
@@ -73,7 +74,7 @@ for i in pdbIDs:
     output = []
     clearCounts()
     p = readProteinSA(i)
-    print i,
+    print i
     for r1 in range(len(p)):	
         res1 = p.residues[r1]
         if(res1.isSurf() or res1.isHydrated()):
