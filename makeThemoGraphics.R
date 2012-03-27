@@ -2,16 +2,16 @@ source("SQLShareLib.R")
 source("ProtLib.R")
 
 #Interaction Table
-dataset <- "h2"
-username <- "whitead"
+dataset <- "thermus"
+username <- "wenjunh"
 
 chis <- getInteractionEnergy(dataset, username)
 
 interactionTable <- chis
 
-surface <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
-interior <- fetchAllBuriedResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
-all <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), -1, normalize=FALSE, username)
+surface <- fetchAllSurfResidues(paste(dataset,"nogaps", sep="_"), cutoff, normalize=FALSE, username)
+interior <- fetchAllBuriedResidues(paste(dataset,"nogaps", sep="_"), cutoff, normalize=FALSE, username)
+all <- fetchAllSurfResidues(paste(dataset,"nogaps", sep="_"), -1, normalize=FALSE, username)
 
 distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(surface - all))
 
@@ -19,7 +19,7 @@ distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(su
 
 #sample all the contact energies
 contacts <- fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)
-bootstrap <- 500
+bootstrap <- 3
 chis.list <- vector("list", bootstrap)
 
 for(b in 1:bootstrap) {
@@ -166,97 +166,4 @@ par(family="LMSans10", cex.axis=0.6)
 
 barx <- barplot(as.matrix(groDist), col=c("gray15","gray75"), main="", xlab="Amino Acid", ylab="", beside=T, names.arg=aalist.sh, ylim = c(0.00,0.20))
 legend("topright", col=c("gray15","gray75"), cex=0.8, legend=c("GroEL-GroES (Closed)","GroEL (Open)"), pch=15)
-graphics.off()
-
-
-#plot2 The plot of 5 species
-
-hspRawCount <- fetchHSPResCount("hsp","in",username="whitead")
-
-for (i in 1:nrow(hspRawCount)) {
-  hspRawCount[i,] <- hspRawCount[i,] / sum(hspRawCount[i,])
-}
-hspRawCount <- as.matrix(hspRawCount)
-
-hspDist <- matrix(0,nrow(hspRawCount)+1, ncol(hspRawCount))
-rownames(hspDist) <- c("Thermo Thermopilius","E.Coli GroEL","Thermo GroEL","Group II","HSP90","Yeast CCT")
-colnames(hspDist) <- colnames(hspRawCount)
-
-hspDist[2,] <- hspRawCount["1SX4",]
-hspDist[3,] <- hspRawCount["1WE3",]
-hspDist[4,] <- hspRawCount["3KFB",]
-hspDist[5,] <- hspRawCount["2CG9",]
-hspDist[6,] <- hspRawCount["3P9D",]
-
-#various statistics
-print(sum(hspRawCount["1WE3", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
-print(sum(hspRawCount["1SX4", c("ASP", "GLU", "LYS", "ARG", "HIS")]))
-print(sum(hspRawCount["3KFB", c("ASP", "GLU")]))
-print(sum(hspRawCount["3KFB", c("LYS", "HIS", "ARG")]))
-
-cutoff <- 0.3
-psurf <- fetchAllSurfResidues("thermus_nogaps", cutoff, normalize=TRUE, "wenjunh")
-
-chargeSum <- rep(0, nrow(psurf))
-
-for (i in 1:nrow(psurf)) {
-  chargeSum[i] <- sum(psurf[i,c("LYS","ARG","GLU","ASP","HIS")])
-}
-quantile(chargeSum, seq(0,1,0.01))
-
-hspDist[1,] <- apply(psurf, MARGIN=2, FUN=median)
-
-up <- matrix(0,6,ncol(psurf))
-low <- matrix(0,6,ncol(psurf))
-
-for (i in 1:ncol(psurf)) {
-  up[1,i] <- quantile(psurf[,i],0.95) - median(psurf[,i])
-  low[1,i] <- median(psurf[,i]) - quantile(psurf[,i],0.05)
-}
-
-cairo_pdf('HSP_Protein_Dist_Thermo.pdf',width=5.5, height=2.58, pointsize=9)
-par(family='LMSans10', cex.axis=0.75)
-barx <- barplot(hspDist, beside=TRUE, col=c('blue','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
-error.bar(barx,hspDist,lower=low,upper=up,length=0.01)
-legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("Thermo Thermopilius","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT"), pch=rep(15,6), cex=0.8)
-graphics.off()
-
-
-#plot3 The plot of E.Coli, Human, and Thermophilius
-cutoff <- 0.3
-psurf_ecoli <- fetchAllSurfResidues("ecoli_nogaps", cutoff, normalize=TRUE, "wenjunh")
-psurf_thermus <- fetchAllSurfResidues("thermus_nogaps", cutoff, normalize=TRUE, "wenjunh")
-psurf_human <- fetchAllSurfResidues("h2_w_nogaps", cutoff, normalize=TRUE, "whitead")
-
-protein_dist <- matrix(0, 3, 20)
-rownames(protein_dist) <- c("E.Coli","Thermus Thermopilius","Human")
-colnames(protein_dist) <- colnames(psurf_ecoli)
-
-protein_dist[1,] <- apply(psurf_ecoli, MARGIN=2, FUN=median)
-protein_dist[2,] <- apply(psurf_thermus, MARGIN=2, FUN=median)
-protein_dist[3,] <- apply(psurf_human, MARGIN=2, FUN=median)
-
-up <- matrix(0,3,ncol(psurf_ecoli))
-low <- matrix(0,3,ncol(psurf_ecoli))
-
-for (i in 1:ncol(psurf_ecoli)) {
-  up[1,i] <- quantile(psurf_ecoli[,i],0.95) - median(psurf_ecoli[,i])
-  low[1,i] <- median(psurf_ecoli[,i]) - quantile(psurf_ecoli[,i],0.05)
-}
-
-for (i in 1:ncol(psurf_thermus)) {
-  up[2,i] <- quantile(psurf_thermus[,i],0.95) - median(psurf_thermus[,i])
-  low[2,i] <- median(psurf_thermus[,i]) - quantile(psurf_thermus[,i],0.05)
-}
-
-for (i in 1:ncol(psurf_human)) {
-  up[3,i] <- quantile(psurf_human[,i],0.95) - median(psurf_human[,i])
-  low[3,i] <- median(psurf_human[,i]) - quantile(psurf_human[,i],0.05)
-}
-
-cairo_pdf('Three_Protein_SurfRes.pdf',width=5.5, height=2.58, pointsize=9)
-par(family='LMSans10', cex.axis=0.75)
-barx <- barplot(protein_dist, beside=TRUE, col=c('gray75','gray50','gray25'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
-error.bar(barx,protein_dist,lower=low,upper=up,length=0.01)
-legend("topright", col=c('gray75','gray50','gray25'), legend=c("E.Coli","Thermus Thermopilius","Human"), pch=rep(15,6), cex=0.8)
 graphics.off()
