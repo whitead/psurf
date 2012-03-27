@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+ #!/usr/bin/env Rscript
 
 source("SQLShareLib.R")
 
@@ -97,10 +97,10 @@ plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, boots
   graphics.off()
 
   cairo_pdf(paste(name, ".pdf", sep=""), width=3.42, height=2.58, pointsize=8)
-  par(family="LMSans10", mar=c(3,4,0.5,0.5), cex.axis=0.65)
-  barx <- barplot(yy, axis.lty=1, col=c("gray50", "gray90"), main="", xlab="Amino Acid Pair", ylab="Frequency", beside=T, ylim=c(0,max(eet) + max(yy)), names.arg=names(pmax))
+  par(family="LMSans10", cex.axis=0.6)
+  barx <- barplot(yy, axis.lty=1, col=c("gray25", "gray80"), main="", xlab="Amino Acid Pair", ylab="Frequency", beside=T, ylim=c(0,max(eet) + max(yy)), names.arg=names(pmax))
   error.bar(barx,yy,lower=eeb,upper=eet, length=0.03)
-  legend("topright", col=c("gray50", "gray90"), legend=c("Observed", "Background"), ncol=1, pch=15)
+  legend("topright", col=c("gray25", "gray80"), legend=c("Observed", "Background"), ncol=1, pch=15)
   graphics.off()
 }
 
@@ -152,10 +152,32 @@ efracs <- fetchAllSurfResidues("eh2_w_nogaps", cutoff, normalize=TRUE)
 pfracs <- fetchAllSurfResidues("cph2_w_nogaps", cutoff, normalize=TRUE)
 rfracs <- fetchAllSurfResidues("h2_w_nogaps", cutoff, normalize=TRUE)
 
+#Some numbers for paper, the amount of charged residues
+rfracs.all <- fetchAllSurfResidues("h2_w_nogaps", -1, normalize=TRUE)
+rfracs.all.means <- apply(rfracs.all, 2, mean)
+temp.means <- apply(rfracs, 2, mean)
+print(sum(temp.means[c("GLU","LYS", "ARG", "HIS", "ASP")]))
+print(sum(rfracs.all.means[c("GLU","LYS", "ARG", "HIS", "ASP")]))
+
 #get pbd ids
 hids <- fetchPDBIDs("h2_w_nogaps")
 pids <- fetchPDBIDs("cph2_w_nogaps")
 eids <- fetchPDBIDs("eh2_w_nogaps")
+
+
+#Another number for the paper
+intop2 <- 0
+notintop2 <- 0
+for(p in pids) {
+  on <- sort(pfracs[p,], decreasing=TRUE)
+  if(names(on)[1] == "GLU" || names(on)[1] == "LYS" || names(on)[2] == "GLU" || names(on)[2] == "LYS") {
+    intop2 <- intop2 + 1
+  }
+  else{
+    notintop2 <- notintop2 + 1
+  }
+}
+print(paste(intop2, notintop2, intop2 / (notintop2 + intop2)))
 
 
 #Make charge histograms
@@ -248,9 +270,9 @@ cairo_pdf("comb.pdf", width=3.42, height=2.58, pointsize=8)
 par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
 yy <- matrix(c(hms, pms, ems), byrow=T, nrow=3)
 ee <- matrix(c(sqrt(hvs / nrow(rfracs)),sqrt(pvs / nrow(pfracs)), sqrt(evs / nrow(efracs))), byrow=T, nrow=3)
-barx <- barplot(yy, col=c("blue", "gray45", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
+barx <- barplot(yy, col=c("blue", "gray25", "dark red"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,ee[which.max(yy)] + max(yy)), names.arg=aalist.sh)
 error.bar(barx,yy,ee,length=0.02)
-legend("topright", col=c("blue", "gray45", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
+legend("topright", col=c("blue", "gray25", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
 graphics.off()
 
 cairo_pdf("comb_black.pdf", width=7, height=3.3, pointsize=12)

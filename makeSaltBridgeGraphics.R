@@ -4,7 +4,7 @@ source("SQLShareLib.R")
 #get the interaction energies between residue types
 getInteractionEnergy <- function(username=NULL, glycine=FALSE) {
 
-  dataset <- paste(paste("h2","ionic","contacts", sep="_"), "csv" ,sep=".")
+  dataset <- paste(paste("h2","ionic","sufrace", "contacts", sep="_"), "csv" ,sep=".")
  
   #get the data
   if(is.null(username)) {
@@ -66,11 +66,11 @@ getInteractionEnergy <- function(username=NULL, glycine=FALSE) {
 }
 
 kt <- 2.494
-bootstrap <- 1000
+bootstrap <- 3
 pairs <- empty.df(cnames=c("RE", "RD", "KE", "KD"), rnames=1:bootstrap)
 names(pairs) <- c("Arg-Glu", "Arg-Asp", "Lys-Glu", "Lys-Asp")
 for(i in 1:bootstrap){
-  print(paste("Bootrap:", i))
+  cat(paste("Bootrap:", i, "\n"))
   intMat <- getInteractionEnergy(username="whitead")
   pairs[i,] <- kt*c(intMat["ARG", "GLU"], intMat["ARG", "ASP"], intMat["LYS", "GLU"], intMat["LYS", "ASP"])
 }
@@ -79,13 +79,31 @@ ims <- apply(pairs, MARGIN=2, FUN=median)
 ilower <- ims - apply(pairs, MARGIN=2, FUN=function(x) {quantile(x, c(0.025))} )
 iupper <- apply(pairs, MARGIN=2, FUN=function(x) {quantile(x, c(0.975))} ) - ims
 
-color <- c("dark gray")
+ims <- ims - ims[1]
+ilower <- ilower
+iupper <- iupper
+
+color <- c("blue", "red")
+
+
+#Free energies from simulation techniques
+deltaG <- c(1.7,7.7, 3.6, 4.2)
+deltaG <- deltaG - deltaG[1]
+deltaG.upper <- c(0.4, 0.3, 0.6, 0.5)
+deltaG.lower <- c(-0.4, -0.3, -0.6, -0.5)
+
+
+iyy <- matrix(c(ims, deltaG), byrow=T, nrow=2)
+ill <- matrix(c(ilower, deltaG.lower), byrow=T, nrow=2)
+iuu <- matrix(c(iupper, deltaG.upper), byrow=T, nrow=2)
 
 cairo_pdf("salt_interaction.pdf", width=4.5, height=3.3, pointsize=12)
 par(family="LMSans10", cex.axis=0.8)
-barx <- barplot(ims, xlab="Pair Type", space=0.5, ylab=expression(paste(Delta * G, " [kJ/mol]")), names.arg=c("Arg-Glu", "Arg-Asp", "Lys-Glu", "Lys-Asp"), ylim=c(min(c(ims - ilower - 0.06)), 0), col=color)
-error.bar(barx, ims, lower=ilower, upper=iupper, length=0.05)
+barx <- barplot(iyy, xlab="Pair Type", axis.lty=1, ylab=expression(paste(Delta * G, " [kJ/mol]")), names.arg=c("Arg-Glu", "Arg-Asp", "Lys-Glu", "Lys-Asp"), beside=T, col=color, ylim=c(min(c(iyy - ill - 0.06)), max(c(iyy + iuu + 0.06))))
+error.bar(barx, iyy, lower=ill, upper=iuu, length=0.05)
+legend("topright", c("Bioinformatics", "Metadynamics"), pch=15, ncol=1, col=color)
 graphics.off()
 
 print(ims - ilower)
 print(ims + iupper)
+print(ims)
