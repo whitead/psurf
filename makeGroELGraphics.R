@@ -6,20 +6,6 @@ source("SQLShareLib.R")
 #get the interaction energies between residue types
 getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=FALSE, countMatrix=fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)) {
 
-<<<<<<< HEAD
- dataset <- paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep=".")
-
-  #get the data
-  if(is.null(username)) {
-    countMatrix <- fetchContacts(dataset)
-  }
-  else{
-    countMatrix <- fetchContacts(dataset, username)
-  }
-
-=======
- 
->>>>>>> c5d0bbe99630b7f7d46aa9e988ffeec99bb925f1
   #re-order it
   anames <- colnames(countMatrix[-c(1,2)])
   aanum <- length(anames)
@@ -303,13 +289,13 @@ for (i in 1:ncol(psurf)) {
   low[1,i] <- median(psurf[,i]) - quantile(psurf[,i],0.05)
 }
 
-<<<<<<< HEAD
 cairo_pdf('HSP_Protein_Dist_Thermo.pdf',width=5.5, height=2.58, pointsize=9)
 par(family='LMSans10', cex.axis=0.75)
 barx <- barplot(hspDist, beside=TRUE, col=c('blue','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
 error.bar(barx,hspDist,lower=low,upper=up,length=0.01)
 legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("Thermo Thermopilius","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT"), pch=rep(15,6), cex=0.8)
 graphics.off()
+
 
 #plot3 The plot of E.Coli, Human, and Thermophilius
 cutoff <- 0.3
@@ -348,11 +334,4 @@ par(family='LMSans10', cex.axis=0.75)
 barx <- barplot(protein_dist, beside=TRUE, col=c('gray75','gray50','gray25'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
 error.bar(barx,protein_dist,lower=low,upper=up,length=0.01)
 legend("topright", col=c('gray75','gray50','gray25'), legend=c("E.Coli","Thermus Thermopilius","Human"), pch=rep(15,6), cex=0.8)
-=======
-cairo_pdf('HSP_Protein_Dist.pdf',width=5.5, height=2.58, pointsize=9)
-par(family='LMSans10', cex.axis=0.75, mar=c(3.5,3,2,2))
-barx <- barplot(hspDist, beside=TRUE, col=c('blue','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
-error.bar(barx,hspDist,lower=low,upper=up,length=0.01)
-legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("E. Coli","E. Coli GroEL","Thermo GroEL","Group II","HSP90","CCT"), pch=rep(15,6), cex=0.8)
->>>>>>> c5d0bbe99630b7f7d46aa9e988ffeec99bb925f1
 graphics.off()
