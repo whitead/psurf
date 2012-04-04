@@ -25,7 +25,6 @@ chis.list <- vector("list", bootstrap)
 for(b in 1:bootstrap) {
 
   chis <- getInteractionEnergy(countMatrix=contacts, random=TRUE)
-  
   for(i in 1:length(distributions)) {
 
     dist <- distributions[[i]]
@@ -81,6 +80,14 @@ interactionTable.lower <- interactionTable.lower[-gindex, -gindex]
 
 write.table(round(interactionTable, 2), file="Interaction_Table.txt", quote=FALSE, sep=" & ", eol="\\\\\n")
 
+#remove cystine
+cindex <- which(colnames(interactionTable) == "CYS")
+
+interactionTable <- interactionTable[-cindex, -cindex]
+interactionTable.upper <- interactionTable.upper[-cindex, -cindex]
+interactionTable.lower <- interactionTable.lower[-cindex, -cindex]
+
+write.table(round(interactionTable, 3), file="Interaction_Table.txt", quote=FALSE, sep=" & ", eol="\\\\\n")
 
 #Plot table
 colGrad <- colorRampPalette(c("blue", "red"))
@@ -140,7 +147,7 @@ yy.lower <- yy - as.matrix(interactionTable.lower[c("Surface", "Interior"),])
 yy.upper <- as.matrix(interactionTable.upper[c("Surface", "Interior"),]) - yy
 yy.index <- order(yy[1,] - yy[2,])
 aalist.sh.nog <- aalist.sh[-which(aalist.sh == "G")]
-barx <- barplot(yy[,yy.index], col=c("gray25", "gray80"), main="", xlab="Amino Acid", ylab=expression(paste("Interaction Energy, E[", chi, "]", " kJ/mol")), beside=T, names.arg=aalist.sh.nog[yy.index], ylim=c(-30,30), space=c(0,0.4))
+barx <- barplot(yy[,yy.index], col=c("gray25", "gray80"), main="", xlab="Amino Acid", ylab=expression(paste("Interaction Energy, E[", chi, "]", " kJ/mol")), beside=T, names.arg=aalist.sh.nog[yy.index], ylim=c(-30,30), space=c(0,0.7))
 error.bar(barx, yy[,yy.index], lower=yy.lower[,yy.index], upper=yy.upper[,yy.index], length=0.02)
 legend("top", col=c("gray25", "gray80"), cex=0.8, legend=c("Surface", "Buried"), pch=15)
 graphics.off()

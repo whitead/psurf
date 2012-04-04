@@ -52,6 +52,11 @@ fetchContacts <- function(tableName, username=FALSE) {
   temp <- lapply(rawData[[1]][-1], lconvert)
   
   data[,1:2] <- matrix(unlist(temp), ncol=2, byrow=T)
+
+#  if(turnOffC){
+#    data[which(data[,"res_type"] == "CYS"),][-c(1,2)] <- 0
+#    data[,"CYS"] <- 0
+#  }
   
   return(data)
 
