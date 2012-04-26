@@ -116,7 +116,7 @@ def genRadius(num):
     sphereRadius = range(num)
     
     for x in sphereRadius:
-        sphereRadius[x] = 10 * random.random()
+        sphereRadius[x] = abs(10 * random.random())
 #        sphereRadius[x] = 10
     
     return sphereRadius
@@ -149,14 +149,15 @@ def sphereVol(sphereRadius, molecule, sphereCenter):
             #print(x+1)
             #print(include)
             #penalty1 = penalty1 + math.log(math.pow(sum(include[1:]),3)+1)
-            penalty1 += 2 * sum(include[1:])
+            penalty1 += 10 * sum([abs(x) for x in include[1:]])
             
             if l == 0:
                 #print(exclude)
                 #penalty1 = penalty1 + math.log(math.pow(sum(exclude),10)+1)
-                penalty1 += 4 * sum(exclude)
-
-    #print(penalty1)
+                penalty1 += 25 * sum([abs(x) for x in exclude])
+    
+    
+#    print(vol)
         
 
     penalty2 = 0 #keep radius positive
