@@ -20,7 +20,7 @@ correlationPicture <- function(matrix, name) {
 }
 
 
-plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, bootstrapNumber=5000) {
+plotpairs <- function(pairslist, fracs, svars, name="pairs", sigNumber=10, bootstrapNumber=1) {
 
   psum <- pairslist[[1]]
   #find most significant

@@ -107,6 +107,9 @@ print(ncol(chis))
 axis(2, 1:ncol(chis), aalist.sh)
 graphics.off()
 
+#Plot table with proportion interacting
+print(contacts)
+
 #Make truncated version
 colGrad <- colorRampPalette(c("blue", "red"))
 trunc.residues <- c("GLU", "GLN", "ASP", "GLN", "LYS", "ARG", "SER", "ALA")

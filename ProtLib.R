@@ -2,8 +2,7 @@
 source("SQLShareLib.R")
 
 #get the interaction energies between residue types
-getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=FALSE, countMatrix=fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)) {
-
+getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=FALSE, cystine=FALSE, countMatrix=fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)) {
   #re-order it
   anames <- colnames(countMatrix[-c(1,2)])
   aanum <- length(anames)
@@ -15,16 +14,13 @@ getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=
   contactMatrix <- sampleContacts(countMatrix, random=random)
   contactMatrix[1:aanum,] <- contactMatrix[order(rownames(contactMatrix)[1:aanum]),]
   rownames(contactMatrix) <- c(sort(rownames(contactMatrix)[1:aanum]), rownames(contactMatrix)[-(1:aanum)])
-
   
   #Adjust sums, so that pairs which were double counted or multiple pairings are fixed
   for(i in 1:aanum) {
     contactMatrix[1:aanum,i] <- contactMatrix[1:aanum,i] * (contactMatrix["TOTAL", i] - contactMatrix["FREE", i]) / sum(contactMatrix[1:aanum,i])
   }
-
   #Make it symmetric
   contactMatrix[1:aanum, 1:aanum] <- (contactMatrix[1:aanum,1:aanum] + t(contactMatrix[1:aanum, 1:aanum])) / 2
-
 
   #normalize it so all events sum to 1
   normRows <- c(1:aanum, which(rownames(contactMatrix) == "FREE"))
@@ -39,7 +35,7 @@ getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=
   categories <- list(Aromatic=aromatic, Polar=polar, Charged=charged, Hydrophobic=hydrophobic)
 
   #make it relative to being a free residue
-
+ 
   
   mat <- matrix(rep(0, aanum * (aanum + length(categories))), nrow=aanum + length(categories))
 
@@ -66,6 +62,12 @@ getInteractionEnergy <- function(dataset, username=FALSE, random=FALSE, glycine=
   if(!glycine) {
     mat["GLY", ] <- 0
     mat[,"GLY"] <- 0
+  }
+
+  #make cystine 0, if wanted
+  if(!cystine) {
+    mat["CYS", ] <- 0
+    mat[ ,"CYS"] <- 0
   }
   
   return(mat)
