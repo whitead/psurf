@@ -132,6 +132,13 @@ rrms.interior <- apply(rfracs.interior,MARGIN=2, FUN=sum)
 rrms <- rrms.surf / rrms.interior
 rrvs <- apply(rfracs.surf, MARGIN=2, FUN=var) * 1 / rrms.interior + apply(rfracs.interior, MARGIN=2, FUN=var) * rrms.surf ** 2 * 1 / rrms.interior ** 4
 
+cairo_pdf("ratios_human.pdf", width=4.5, height=3.3, pointsize=12)
+par(family="LMRoman10", bg="transparent", cex=0.8)
+yy <- matrix(c(rrms), byrow=T, nrow=1)
+ee <- matrix(c(sqrt(rrvs)), byrow=T, nrow=1)
+barx <- barplot(yy, col=c("light gray"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,max(ee) + max(yy)), names.arg=aalist.sh)
+error.bar(barx,yy,ee,length=0.02)
+graphics.off()
 
 
 
@@ -155,9 +162,16 @@ rfracs <- fetchAllSurfResidues("h2_w_nogaps", cutoff, normalize=TRUE)
 #Some numbers for paper, the amount of charged residues
 rfracs.all <- fetchAllSurfResidues("h2_w_nogaps", -1, normalize=TRUE)
 rfracs.all.means <- apply(rfracs.all, 2, mean)
-temp.means <- apply(rfracs, 2, mean)
+#temp.means <- apply(rfracs, 2, mean)
+temp.means <- apply(efracs, 2, mean)
+
 print(sum(temp.means[c("GLU","LYS", "ARG", "HIS", "ASP")]))
-print(sum(rfracs.all.means[c("GLU","LYS", "ARG", "HIS", "ASP")]))
+cat("Hydrophilic\n")
+print(sum(temp.means[c("GLY","MET", "SER", "ASN", "GLN", "THR")]))
+cat("Hydrophobic\n")
+print(sum(temp.means[c("LEU","ILE", "PRO", "ALA", "VAL")]))
+cat("Aromatci\n")
+print(sum(temp.means[c("TYR","PHE", "TRP")]))
 
 #get pbd ids
 hids <- fetchPDBIDs("h2_w_nogaps")
@@ -283,7 +297,17 @@ barx <- barplot(yy, col=c("blue", "dark gray", "dark red"), main="", xlab="Amino
 error.bar(barx,yy,ee,length=0.02)
 legend("topright", col=c("blue", "dark gray", "dark red"), legend=c("Human", "Cytoplasma", "Extracellular"), ncol=1, pch=15)
 graphics.off()
-               
+
+cairo_pdf("human_fracs.pdf", width=3.42, height=2.58, pointsize=8)
+par(mar=c(3,4,0.5,0.5), cex.axis=0.65, family="LMSans10")
+yy <- matrix(c(hms), byrow=T, nrow=1)
+ee <- matrix(c(sqrt(hvs / nrow(rfracs))), byrow=T, nrow=1)
+barx <- barplot(yy, col=c("blue"), main="", xlab="Amino Acid", ylab="Fraction", beside=T, ylim=c(0,0.15), names.arg=aalist.sh)
+error.bar(barx,yy,ee,length=0.02)
+graphics.off()
+
+
+
 #surface correlation matrices
 correlationPicture(rfracs, "h2_w_nogaps")
 correlationPicture(pfracs, "cph2_w_nogaps")

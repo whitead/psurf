@@ -2,16 +2,18 @@ source("SQLShareLib.R")
 source("ProtLib.R")
 
 #Interaction Table
-dataset <- "thermus"
-username <- "wenjunh"
+dataset <- "h2"
+username <- "whitead"
 
-chis <- getInteractionEnergy(dataset, username)
+#chis <- getInteractionEnergy(dataset, username)
+
+chis <- getInteractionEnergy(dataset, username, countMatrix=fetchContacts("h1_surface_contacts.csv"))
 
 interactionTable <- chis
 
-surface <- fetchAllSurfResidues(paste(dataset,"nogaps", sep="_"), cutoff, normalize=FALSE, username)
-interior <- fetchAllBuriedResidues(paste(dataset,"nogaps", sep="_"), cutoff, normalize=FALSE, username)
-all <- fetchAllSurfResidues(paste(dataset,"nogaps", sep="_"), -1, normalize=FALSE, username)
+surface <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
+interior <- fetchAllBuriedResidues(paste(dataset,"w_nogaps", sep="_"), cutoff, normalize=FALSE, username)
+all <- fetchAllSurfResidues(paste(dataset,"w_nogaps", sep="_"), -1, normalize=FALSE, username)
 
 distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(surface - all))
 

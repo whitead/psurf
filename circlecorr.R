@@ -1,6 +1,6 @@
 #' Represents Correlation circles
 #'
-#' @author Taiyun Wei
+#' @author Taiyun Wei & Andrew White (added bars)
 #' @param corr Correlation matrix to represent
 #' @param col vector the fill color of circles from 1 to -1
 #'        the length of it may not be 2, eg rainbow(50)
@@ -11,7 +11,7 @@
 #' @param title title of the graph
 #' @param ... extra parameters, currenlty ignored
 circle.corr <- function(corr, bars=NULL, col=c("black","white"), bg = "white", 
-	cex = 1, order = FALSE, title = "", ...){
+	cex = 1, yTextRot=90, order = FALSE, title = "", ...){
 	
      rootbg <- bg    
 
@@ -68,7 +68,7 @@ circle.corr <- function(corr, bars=NULL, col=c("black","white"), bg = "white",
 
     ## add variable names and title
     text(rep(-xlabwidth/2, n), n:1, rname, col = "black", cex = cex)
-    text(1:m, rep(n + 1 + ylabwidth/2, m), cname, srt = 90, col = "black", 
+    text(1:m, rep(n + 1 + ylabwidth/2, m), cname, srt = yTextRot, col = "black", 
         cex = cex )
     title(title)
 
@@ -98,17 +98,17 @@ circle.corr <- function(corr, bars=NULL, col=c("black","white"), bg = "white",
         circles = as.vector(sqrt(abs(corr))/2), bg = as.vector(bg))
 	
     ##Cover up diagonal
-    if(m == n) {
-        symbols(1:m, n:1, add=T, inches=F, circles=rep(0.25, m), bg=rootbg, fg=rootbg)
-    }
-
+    #if(m == n) {
+    #    symbols(1:m, n:1, add=T, inches=F, circles=rep(0.25, m), bg=rootbg, fg=rootbg)
+    #}
+     
     ##Add bars
     if(!is.null(bars) & n == m) {
       barmarg  <- 0
-      col <- rgb(0.4, 0.4, 0.8)
+      col <- rgb(0.0, 0.2, 0.8)
       for(i in 1:m) {
-        rect(m + 0.5, 0.5 + (m - i) + barmarg, 0.5 + m + barlength * bars[i] / max(bars), 0.5 + (m - i) + 1 - barmarg, col=col, border="gray")
-	rect(-0.5 + i + barmarg, 0.5, -0.5 + i + 1 - barmarg, 0.5 - barlength * bars[i] / max(bars), col=col, border="gray")
+        rect(m + 0.5, 0.5 + (m - i) + barmarg, 0.5 + m + barlength * bars[i] / max(bars), 0.5 + (m - i) + 1 - barmarg, col=col, border="dark gray")
+	rect(-0.5 + i + barmarg, 0.5, -0.5 + i + 1 - barmarg, 0.5 - barlength * bars[i] / max(bars), col=col, border="dark gray")
       }
     }
 }

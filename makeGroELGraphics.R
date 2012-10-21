@@ -1,11 +1,12 @@
 source("SQLShareLib.R")
 source("ProtLib.R")
+source("circlecorr.R")
 
 #Interaction Table
 dataset <- "h2"
 username <- "whitead"
 
-chis <- getInteractionEnergy(dataset, username)
+chis <- getInteractionEnergy(dataset, username, countMatrix=fetchContacts("h1_surface_contacts.csv"))
 
 interactionTable <- chis
 
@@ -19,7 +20,7 @@ distributions <- list(Proteins=all, Surface=surface, Interior=interior, Diff=(su
 
 #sample all the contact energies
 contacts <- fetchContacts(paste(paste(dataset,"backbone","contacts", sep="_"), "csv" ,sep="."), username)
-bootstrap <- 500
+bootstrap <- 2
 chis.list <- vector("list", bootstrap)
 
 for(b in 1:bootstrap) {
@@ -108,7 +109,30 @@ axis(2, 1:ncol(chis), aalist.sh)
 graphics.off()
 
 #Plot table with proportion interacting
-print(contacts)
+#get proportion interacting first
+surfContacts <- fetchContacts(paste(paste("h1","surface","contacts", sep="_"), "csv" ,sep="."), username)
+scont <- sampleContacts(surfContacts, random=FALSE)
+propInteract <- sapply(aalist, function(x) {1 - scont["FREE", x] / scont["TOTAL", x]})
+
+#remove glycine
+print(propInteract)
+propInteract <- propInteract[-gindex]
+print(propInteract)
+#make the interaction table vary between -1 and 1, just cuz
+interactMatrix <- interactionTable[1:19, 1:19]
+interactMatrix <- as.matrix(-interactMatrix)
+rownames(interactMatrix) <- aalist.sh[-gindex]
+colnames(interactMatrix) <- aalist.sh[-gindex]
+ 
+interval <- (max(interactMatrix) - min(interactMatrix))
+disp <- max(interactMatrix) - interval / 2
+interactMatrix <- 1.7 *(interactMatrix - disp) / interval
+cairo_pdf("prop_interact_matrix.pdf", width=7, height=7, pointsize=12)
+par(family="LMSans10")
+circle.corr(interactMatrix, propInteract, order=F, yTextRot=0, bg="gray50",
+            col=colorRampPalette(c("blue", "white", "red"))(200))
+graphics.off()
+
 
 #Make truncated version
 colGrad <- colorRampPalette(c("blue", "red"))
@@ -137,6 +161,7 @@ graphics.off()
 cairo_pdf("aa_protein_interactions.pdf", width=3.42, height=2.58, pointsize=8)
 par(family="LMSans10", cex.axis=0.6)
 yy <- as.matrix(interactionTable[c("Surface", "Interior"),])
+print(yy)
 print(dim(yy))
 print(dim(as.matrix(interactionTable.lower[c("Surface", "Interior"),])))
 yy.lower <- yy - as.matrix(interactionTable.lower[c("Surface", "Interior"),])
@@ -222,6 +247,15 @@ par(family='LMSans10', cex.axis=0.75)
 barx <- barplot(hspDist, beside=TRUE, col=c('blue','gray75','gray60','gray45','gray30','gray15'), ylim=c(0.0,0.3), names.arg=aalist.sh,)
 error.bar(barx,hspDist,lower=low,upper=up,length=0.01)
 legend("topright", col=c('blue','gray75','gray60','gray45','gray30','gray15'), legend=c("Thermo Thermopilius","E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT"), pch=rep(15,6), cex=0.8)
+graphics.off()
+
+
+cairo_pdf('HSP_Protein_Dist_No_Ecoli.pdf',width=5.5, height=2.58, pointsize=9)
+par(family='LMSans10', cex.axis=0.75)
+shades <- hcl(h=1:5 * (360 / 5), c=60, l=70 )
+barx <- barplot(hspDist[2:6,], beside=TRUE, col=c(shades), ylim=c(0.0,0.3), names.arg=aalist.sh,)
+error.bar(barx,hspDist[2:6,],lower=low[2:6,],upper=up[2:6,],length=0.01)
+legend("topright", col=shades, legend=c("E.Coli GroEl","Thermo GroEl","Group II HSP","HSP90","Eukaryotic CCT"), pch=rep(15,5), cex=0.8)
 graphics.off()
 
 
