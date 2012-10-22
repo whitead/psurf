@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 
 source("circlecorr.R")
+source("apikey.R") #should contain apikey variable and myUsername variable
 library(RCurl)
 
-myUsername <- "whitead"
-apikey <- "58f90137316aedb538b85a54955173c0"
+
 
 cutoff <- 0.3
 aalist <- c("ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL")
