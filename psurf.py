@@ -205,8 +205,8 @@ class Residue:
       return self.chain
 
    def __str__(self):
-       return("Residue of type %s with %d atoms" % (self.type,
-                                                    len(self.atoms)))
+       return("Residue of type %s with %d atoms at index %d" % (self.type,
+                                                    len(self.atoms), self.getIndex()))
 
    def getAtom(self, index):
       for a in self.atoms:
